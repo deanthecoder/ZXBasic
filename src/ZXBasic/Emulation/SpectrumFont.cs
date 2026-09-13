@@ -8,13 +8,15 @@
 // 
 // THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND.
 
+using Avalonia.Platform;
+
 namespace ZXBasic.Emulation;
 
 public sealed class SpectrumFont
 {
-    private const int FontOffset = 0x3D00;
     private const int GlyphCount = 96;
     private const int BytesPerGlyph = 8;
+    private static readonly Uri FontUri = new("avares://ZXBasic/Assets/Fonts/ZXSpectrum/zx_spectrum_font.bin");
     private readonly byte[] m_glyphs;
 
     private SpectrumFont(byte[] glyphs)
@@ -41,13 +43,10 @@ public sealed class SpectrumFont
 
     public static SpectrumFont Load()
     {
-        var romFile = FindRom();
-        var rom = File.ReadAllBytes(romFile.FullName);
-        var requiredLength = FontOffset + GlyphCount * BytesPerGlyph;
-        if (rom.Length < requiredLength)
-            throw new InvalidDataException($"The ROM at '{romFile.FullName}' is too small to contain the Spectrum character set.");
-
-        return FromGlyphs(rom.AsSpan(FontOffset, GlyphCount * BytesPerGlyph));
+        using var stream = AssetLoader.Open(FontUri);
+        using var memory = new MemoryStream();
+        stream.CopyTo(memory);
+        return FromGlyphs(memory.ToArray());
     }
 
     public static SpectrumFont FromGlyphs(ReadOnlySpan<byte> glyphs)
@@ -73,26 +72,5 @@ public sealed class SpectrumFont
         }
 
         return null;
-    }
-
-    private static FileInfo FindRom()
-    {
-        var configuredPath = Environment.GetEnvironmentVariable("ZXBASIC_ROM_PATH");
-        var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        var candidates = new[]
-        {
-            configuredPath,
-            Path.Combine(AppContext.BaseDirectory, "48.rom"),
-            Path.Combine(documents, "Source", "Repos", "ZXSpeculator", "Speculator", "Speculator", "ROMs", "Standard Spectrum 48K BASIC.rom")
-        };
-
-        var path = candidates.FirstOrDefault(candidate => !string.IsNullOrWhiteSpace(candidate) && File.Exists(candidate));
-        if (path == null)
-        {
-            throw new FileNotFoundException(
-                "ZXBasic needs a Spectrum 48K ROM to obtain the original character set. Set ZXBASIC_ROM_PATH or place 48.rom beside the application.");
-        }
-
-        return new FileInfo(path);
     }
 }

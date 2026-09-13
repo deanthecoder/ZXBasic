@@ -52,6 +52,7 @@ public sealed class SpectrumTerminal : Control
     private bool m_isAwaitingInput;
     private bool m_isWaitingForKey;
     private CancellationTokenSource? m_runCancellation;
+    private TaskCompletionSource? m_runCompletion;
     private TaskCompletionSource<string>? m_inputCompletion;
     private TaskCompletionSource? m_keyCompletion;
     private string m_pendingInkey = string.Empty;
@@ -84,17 +85,15 @@ public sealed class SpectrumTerminal : Control
 
     public void LoadSnapshot(byte[] snapshot)
     {
+        m_program.Clear();
+        ShowLoadedProgram();
         var lines = SnaBasicImporter.Import(snapshot);
-        m_program.ReplaceListing(lines);
-        m_hasStarted = true;
-        m_hasError = false;
-        m_preserveProgramScreen = false;
-        m_isPaused = false;
-        m_input = string.Empty;
-        m_cursor = 0;
-        m_selectedLineNumber = null;
-        SetOutputLines(m_program.GetListing());
-        ShowCursor();
+        var result = m_program.EnterListingUntilError(string.Join('\n', lines));
+        ShowListingResult(result);
+        if (!result.IsValid)
+        {
+            throw new BasicSyntaxException("The snapshot contains an unsupported BASIC line.", 0);
+        }
     }
 
     public bool TryLoadSnapshot(byte[] snapshot)
@@ -106,11 +105,57 @@ public sealed class SpectrumTerminal : Control
         }
         catch (BasicSyntaxException)
         {
-            m_hasStarted = true;
+            if (m_input.Length == 0)
+            {
+                ShowLoadedProgram();
+            }
             m_hasError = true;
             ShowCursor();
             return false;
         }
+    }
+
+    public void LoadListing(string listing)
+    {
+        var result = m_program.EnterListingUntilError(listing, replaceExisting: true);
+        ShowListingResult(result);
+        if (!result.IsValid)
+        {
+            throw new BasicSyntaxException("The listing contains an unsupported BASIC line.", 0);
+        }
+    }
+
+    public bool TryLoadListing(string listing)
+    {
+        try
+        {
+            LoadListing(listing);
+            return true;
+        }
+        catch (BasicSyntaxException)
+        {
+            return false;
+        }
+    }
+
+    public string GetListingText()
+    {
+        return string.Join(Environment.NewLine, m_program.GetListing());
+    }
+
+    public void ResetMachine()
+    {
+        m_program.Clear();
+        m_statementExecutor.Runtime.ResetForRun();
+        m_hasStarted = false;
+        m_hasError = false;
+        m_preserveProgramScreen = false;
+        m_isPaused = false;
+        m_input = string.Empty;
+        m_cursor = 0;
+        m_selectedLineNumber = null;
+        SetOutputLines([]);
+        ShowCursor();
     }
 
     public SpectrumTerminal()
@@ -167,6 +212,7 @@ public sealed class SpectrumTerminal : Control
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
+        UpdateMouseState(e);
         Focus();
         if (m_isRunning || m_preserveProgramScreen)
         {
@@ -201,6 +247,24 @@ public sealed class SpectrumTerminal : Control
         e.Handled = true;
     }
 
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        base.OnPointerMoved(e);
+        UpdateMouseState(e);
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        base.OnPointerReleased(e);
+        UpdateMouseState(e);
+    }
+
+    protected override void OnPointerExited(PointerEventArgs e)
+    {
+        base.OnPointerExited(e);
+        m_statementExecutor.Runtime.SetMouseState(-1, -1, 0);
+    }
+
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
@@ -230,6 +294,55 @@ public sealed class SpectrumTerminal : Control
         m_runCancellation?.Cancel();
         Focus();
         return true;
+    }
+
+    public async Task<bool> StopExecutionAsync()
+    {
+        if (!StopExecution())
+        {
+            return false;
+        }
+
+        var completion = m_runCompletion;
+        if (completion != null)
+        {
+            await completion.Task;
+        }
+        return true;
+    }
+
+    private void UpdateMouseState(PointerEventArgs e)
+    {
+        var point = e.GetCurrentPoint(this);
+        var position = GetDisplayPosition(point.Position);
+        if (position == null)
+        {
+            m_statementExecutor.Runtime.SetMouseState(-1, -1, 0);
+            return;
+        }
+
+        var properties = point.Properties;
+        var buttons = (properties.IsLeftButtonPressed ? 1 : 0) |
+                      (properties.IsRightButtonPressed ? 2 : 0) |
+                      (properties.IsMiddleButtonPressed ? 4 : 0);
+        m_statementExecutor.Runtime.SetMouseState(position.Value.X, position.Value.Y, buttons);
+    }
+
+    private (int X, int Y)? GetDisplayPosition(Point position)
+    {
+        var scale = Math.Min(Bounds.Width / SpectrumScreen.FrameWidth, Bounds.Height / SpectrumScreen.FrameHeight);
+        var width = SpectrumScreen.FrameWidth * scale;
+        var height = SpectrumScreen.FrameHeight * scale;
+        var frameX = (position.X - (Bounds.Width - width) / 2) / scale;
+        var frameY = (position.Y - (Bounds.Height - height) / 2) / scale;
+        if (frameX < SpectrumScreen.BorderX || frameX >= SpectrumScreen.BorderX + SpectrumScreen.Width ||
+            frameY < SpectrumScreen.BorderY || frameY >= SpectrumScreen.BorderY + SpectrumScreen.Height)
+        {
+            return null;
+        }
+
+        return ((int)(frameX - SpectrumScreen.BorderX),
+            SpectrumScreen.Height - 1 - (int)(frameY - SpectrumScreen.BorderY));
     }
 
     private int? GetTextRow(Point position)
@@ -319,6 +432,16 @@ public sealed class SpectrumTerminal : Control
             }
         }
 
+        if (e.Key == Key.Escape)
+        {
+            m_input = string.Empty;
+            m_cursor = 0;
+            m_hasError = false;
+            ShowCursor();
+            e.Handled = true;
+            return;
+        }
+
         if (IsPasteGesture(e))
         {
             if (m_isPaused)
@@ -402,21 +525,26 @@ public sealed class SpectrumTerminal : Control
 
         try
         {
-            var currentLineNumber = m_program.EnterListing(normalized);
-            if (currentLineNumber == null)
+            var result = m_program.EnterListingUntilError(normalized);
+            if (!result.IsValid)
+            {
+                ShowListingResult(result);
+                return;
+            }
+            if (result.LastLineNumber == null)
             {
                 return;
             }
 
             m_input = string.Empty;
             m_cursor = 0;
-            m_selectedLineNumber = currentLineNumber;
+            m_selectedLineNumber = result.LastLineNumber;
             m_hasError = false;
             m_hasStarted = true;
             m_isPaused = false;
             m_preserveProgramScreen = false;
             SetOutputLines(m_program.GetAutomaticListing(
-                currentLineNumber.Value,
+                result.LastLineNumber.Value,
                 SpectrumScreen.Columns,
                 SpectrumScreen.Rows - 1));
         }
@@ -530,6 +658,9 @@ public sealed class SpectrumTerminal : Control
             m_isRunning = true;
             var cancellation = new CancellationTokenSource();
             m_runCancellation = cancellation;
+            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_runCompletion = completion;
+            m_statementExecutor.Runtime.ClearScreen();
             RefreshFrame();
             try
             {
@@ -556,6 +687,11 @@ public sealed class SpectrumTerminal : Control
                 m_isAwaitingInput = false;
                 m_isWaitingForKey = false;
                 cancellation.Dispose();
+                completion.TrySetResult();
+                if (ReferenceEquals(m_runCompletion, completion))
+                {
+                    m_runCompletion = null;
+                }
             }
         }
         else
@@ -611,7 +747,7 @@ public sealed class SpectrumTerminal : Control
 
         if (!m_hasStarted)
         {
-            m_screen.DrawText(0, 23, "© 2026 DEANTHECODER", m_font);
+            m_screen.DrawText(0, 23, "© 2026 DEANTHECODER ZXBASIC", m_font);
             CopyFrame(m_screen);
             return;
         }
@@ -753,6 +889,34 @@ public sealed class SpectrumTerminal : Control
         m_outputLines = lines;
         m_outputLineOffset = 0;
         m_scrollWheelRemainder = 0;
+    }
+
+    private void ShowLoadedProgram()
+    {
+        m_hasStarted = true;
+        m_hasError = false;
+        m_preserveProgramScreen = false;
+        m_isPaused = false;
+        m_input = string.Empty;
+        m_cursor = 0;
+        m_selectedLineNumber = null;
+        SetOutputLines(m_program.GetListing());
+        ShowCursor();
+    }
+
+    private void ShowListingResult(BasicListingResult result)
+    {
+        ShowLoadedProgram();
+        if (result.IsValid)
+        {
+            return;
+        }
+
+        m_input = result.InvalidLine!;
+        m_cursor = m_input.Length;
+        m_hasError = true;
+        m_selectedLineNumber = result.LastLineNumber;
+        ShowCursor();
     }
 
     private string MarkSelectedListingLine(string line)

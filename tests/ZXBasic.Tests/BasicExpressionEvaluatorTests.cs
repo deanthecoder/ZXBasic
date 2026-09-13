@@ -56,6 +56,21 @@ public class BasicExpressionEvaluatorTests
     }
 
     [Test]
+    public void ReadsLiveMouseVariables()
+    {
+        var runtime = new BasicRuntime(new SpectrumScreen());
+        runtime.SetMouseState(120, 75, 5);
+        var evaluator = new BasicExpressionEvaluator(runtime);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(evaluator.Evaluate(BasicTokenizer.Tokenize("_MX")), Is.EqualTo(120));
+            Assert.That(evaluator.Evaluate(BasicTokenizer.Tokenize("_MY")), Is.EqualTo(75));
+            Assert.That(evaluator.Evaluate(BasicTokenizer.Tokenize("_MB")), Is.EqualTo(5));
+        });
+    }
+
+    [Test]
     public void EvaluatesStringVariablesConcatenationAndConversions()
     {
         var runtime = new BasicRuntime(new SpectrumScreen());

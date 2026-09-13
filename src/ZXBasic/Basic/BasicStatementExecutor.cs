@@ -62,7 +62,7 @@ public sealed class BasicStatementExecutor
         return tokens[0].Keyword switch
         {
             BasicKeyword.Border => ExecuteColorValue(tokens, color => Runtime.Screen.BorderColor = color, "BORDER", 7),
-            BasicKeyword.Ink => ExecuteColorValue(tokens, color => Runtime.Ink = color, "INK", 7),
+            BasicKeyword.Ink => ExecuteInk(tokens),
             BasicKeyword.Paper => ExecuteColorValue(tokens, color => Runtime.Paper = color, "PAPER", 7),
             BasicKeyword.Bright => ExecuteBooleanValue(tokens, value => Runtime.Bright = value, "BRIGHT"),
             BasicKeyword.Flash => ExecuteBooleanValue(tokens, value => Runtime.Flash = value, "FLASH"),
@@ -101,6 +101,26 @@ public sealed class BasicStatementExecutor
             throw new BasicSyntaxException($"{command} needs an integer from 0 to {maximum}.", ArgumentPosition(tokens));
 
         assign((byte)value);
+        return BasicStatementResult.Continue;
+    }
+
+    private BasicStatementResult ExecuteInk(IReadOnlyList<BasicToken> tokens)
+    {
+        var value = ToInteger(Evaluate(tokens, 1));
+        if (value is < 0 or > 9)
+        {
+            throw new BasicSyntaxException("INK needs a value from 0 to 9.", ArgumentPosition(tokens));
+        }
+
+        if (value < 8)
+        {
+            Runtime.Ink = (byte)value;
+        }
+        else if (value == 9)
+        {
+            Runtime.Ink = Runtime.Paper < 4 ? (byte)7 : (byte)0;
+        }
+
         return BasicStatementResult.Continue;
     }
 

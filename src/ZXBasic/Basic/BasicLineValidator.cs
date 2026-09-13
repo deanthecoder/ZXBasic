@@ -14,7 +14,7 @@ public static class BasicLineValidator
 {
     private static readonly string[] StatementKeywords =
     [
-        "BEEP", "BORDER", "BRIGHT", "CIRCLE", "CLEAR", "CLS", "CONTINUE", "DATA", "DEF FN", "DIM", "ERASE",
+        "BEEP", "BORDER", "BRIGHT", "CIRCLE", "CLEAR", "CLS", "CONTINUE", "DATA", "DEF FN", "DEFFN", "DIM", "ERASE",
         "DRAW", "FOR", "GO SUB", "GOSUB", "GO TO", "GOTO", "IF", "INK", "INPUT", "LET", "LIST", "NEW", "NEXT", "OVER",
         "PAPER", "PAUSE", "PLOT", "POKE", "PRINT", "RANDOMIZE", "READ", "REM", "RESTORE", "RETURN", "RUN", "STOP",
         "FLASH", "INVERSE"

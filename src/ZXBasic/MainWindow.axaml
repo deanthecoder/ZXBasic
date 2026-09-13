@@ -9,12 +9,16 @@
         MinHeight="480"
         Background="Black"
         DragDrop.AllowDrop="True"
-        Title="ZXBasic">
+        Title="DeanTheCoder ZXBasic">
     <Grid RowDefinitions="Auto,*">
-        <Grid ColumnDefinitions="*,Auto" Background="#212121">
+        <Grid ColumnDefinitions="*,Auto,Auto" Background="#212121">
             <Menu Background="Transparent">
                 <MenuItem Header="File">
-                    <MenuItem Header="_Open Snapshot..." InputGesture="{OnPlatform 'Ctrl+O', macOS='⌘+O'}" Click="OpenSnapshotClicked" />
+                    <MenuItem Header="_Open..." InputGesture="{OnPlatform 'Ctrl+O', macOS='⌘+O'}" Click="OpenClicked" />
+                    <MenuItem Header="_Save BASIC As..." InputGesture="{OnPlatform 'Ctrl+S', macOS='⌘+S'}" Click="SaveClicked" />
+                </MenuItem>
+                <MenuItem Header="Machine">
+                    <MenuItem Header="_Reset Machine" Click="ResetMachineClicked" />
                 </MenuItem>
                 <MenuItem Header="Display">
                     <MenuItem Header="CRT effect" Click="ToggleCrtClicked">
@@ -22,6 +26,10 @@
                             <icons:MaterialIcon x:Name="CrtCheckIcon" Kind="Tick" />
                         </MenuItem.Icon>
                     </MenuItem>
+                </MenuItem>
+                <MenuItem Header="Help">
+                    <MenuItem Header="_Open Project Page..." Click="OpenProjectPageClicked" />
+                    <MenuItem Header="_About..." Click="AboutClicked" />
                 </MenuItem>
             </Menu>
 
@@ -34,21 +42,50 @@
                     ToolTip.Tip="Execution speed: Spectrum">
                 <icons:MaterialIcon x:Name="SpeedIcon" Width="24" Height="24" Kind="Walk" />
             </Button>
+
+            <Grid Grid.Column="2"
+                  Width="48"
+                  Height="22"
+                  Margin="8,0,14,0"
+                  VerticalAlignment="Center"
+                  RenderTransformOrigin="0.5,0.5"
+                  ColumnDefinitions="*,*,*,*">
+                <Grid.RenderTransform>
+                    <SkewTransform AngleX="-20" />
+                </Grid.RenderTransform>
+                <Rectangle Grid.Column="0" Fill="#D62828" />
+                <Rectangle Grid.Column="1" Fill="#FFC300" />
+                <Rectangle Grid.Column="2" Fill="#009E49" />
+                <Rectangle Grid.Column="3" Fill="#00A9E0" />
+            </Grid>
         </Grid>
 
-        <Viewbox Grid.Row="1" Stretch="Uniform">
-            <Panel Width="320" Height="240">
-                <controls:SpectrumTerminal x:Name="Terminal" />
-                <Image x:Name="CrtOverlay"
-                       Source="{Binding CrtFrame, ElementName=Terminal}"
-                       Stretch="Fill"
-                       IsHitTestVisible="False"
-                       Opacity="0.4">
+        <Grid Grid.Row="1" ClipToBounds="True">
+            <Image x:Name="AmbientDisplay"
+                   Source="{Binding Frame, ElementName=Terminal}"
+                   Margin="-200,0"
+                   Stretch="UniformToFill"
+                   IsHitTestVisible="False"
+                   Opacity="0.6">
+                <Image.Effect>
+                    <BlurEffect Radius="200" />
+                </Image.Effect>
+            </Image>
+
+            <Viewbox Stretch="Uniform">
+                <Panel Width="320" Height="240">
+                    <controls:SpectrumTerminal x:Name="Terminal" />
+                    <Image x:Name="CrtOverlay"
+                           Source="{Binding CrtFrame, ElementName=Terminal}"
+                           Stretch="Fill"
+                           IsHitTestVisible="False"
+                           Opacity="0.4">
                     <Image.Effect>
                         <BlurEffect Radius="0.1" />
                     </Image.Effect>
-                </Image>
-            </Panel>
-        </Viewbox>
+                    </Image>
+                </Panel>
+            </Viewbox>
+        </Grid>
     </Grid>
 </Window>

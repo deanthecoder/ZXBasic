@@ -40,6 +40,9 @@ public sealed class BasicRuntime
     public int PrintRow { get; private set; }
     public int PlotX { get; set; }
     public int PlotY { get; set; }
+    public int MouseX { get; private set; } = -1;
+    public int MouseY { get; private set; } = -1;
+    public int MouseButtons { get; private set; }
 
     public BasicRuntime(SpectrumScreen screen, SpectrumFont? font = null)
     {
@@ -50,9 +53,22 @@ public sealed class BasicRuntime
 
     public double GetVariable(string name)
     {
+        if (name.Equals("_MX", StringComparison.OrdinalIgnoreCase))
+            return MouseX;
+        if (name.Equals("_MY", StringComparison.OrdinalIgnoreCase))
+            return MouseY;
+        if (name.Equals("_MB", StringComparison.OrdinalIgnoreCase))
+            return MouseButtons;
         if (m_localScopes.Count > 0 && m_localScopes.Peek().TryGetValue(name, out var localValue))
             return localValue;
         return m_variables.GetValueOrDefault(name);
+    }
+
+    public void SetMouseState(int x, int y, int buttons)
+    {
+        MouseX = x;
+        MouseY = y;
+        MouseButtons = buttons;
     }
 
     public void SetVariable(string name, double value)

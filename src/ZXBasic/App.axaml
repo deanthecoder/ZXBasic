@@ -3,6 +3,7 @@
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:material="clr-namespace:Material.Styles.Themes;assembly=Material.Styles"
              x:Class="ZXBasic.App"
+             Name="ZXBasic"
              RequestedThemeVariant="Dark">
     <Application.Styles>
         <FluentTheme />

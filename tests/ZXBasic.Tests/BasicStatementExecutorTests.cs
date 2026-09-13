@@ -65,6 +65,20 @@ public class BasicStatementExecutorTests
     }
 
     [Test]
+    public void InkAcceptsSpectrumTransparentAndContrastValues()
+    {
+        var executor = new BasicStatementExecutor(new SpectrumScreen());
+        executor.Runtime.Ink = 3;
+
+        executor.TryExecute(BasicTokenizer.Tokenize("INK 7.6"));
+        Assert.That(executor.Runtime.Ink, Is.EqualTo(3), "INK 8 should retain the current ink");
+
+        executor.Runtime.Paper = 6;
+        executor.TryExecute(BasicTokenizer.Tokenize("INK 9"));
+        Assert.That(executor.Runtime.Ink, Is.Zero, "INK 9 should contrast with a light paper");
+    }
+
+    [Test]
     public void ExecutesColonSeparatedDirectStatements()
     {
         var screen = new SpectrumScreen();

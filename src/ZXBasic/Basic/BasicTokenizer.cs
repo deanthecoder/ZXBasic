@@ -53,6 +53,7 @@ public static class BasicTokenizer
         ["TO"] = BasicKeyword.To,
         ["STEP"] = BasicKeyword.Step,
         ["DEF FN"] = BasicKeyword.DefFn,
+        ["DEFFN"] = BasicKeyword.DefFn,
         ["BEEP"] = BasicKeyword.Beep,
         ["CIRCLE"] = BasicKeyword.Circle,
         ["INK"] = BasicKeyword.Ink,
@@ -130,7 +131,7 @@ public static class BasicTokenizer
                 continue;
             }
 
-            if (char.IsLetter(source[position]))
+            if (char.IsLetter(source[position]) || source[position] == '_')
             {
                 tokens.Add(ReadIdentifier(source, ref position));
                 continue;
@@ -209,7 +210,7 @@ public static class BasicTokenizer
     private static BasicToken ReadIdentifier(string source, ref int position)
     {
         var start = position++;
-        while (position < source.Length && (char.IsLetterOrDigit(source[position]) || source[position] == '$'))
+        while (position < source.Length && (char.IsLetterOrDigit(source[position]) || source[position] is '$' or '_'))
             position++;
 
         return new BasicToken(BasicTokenKind.Identifier, source[start..position], start);

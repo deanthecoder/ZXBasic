@@ -130,6 +130,36 @@ public class BasicProgramTests
     }
 
     [Test]
+    public void ReplaceListingRemovesThePreviousProgram()
+    {
+        var program = new BasicProgram();
+        program.Enter("10 PRINT \"OLD\"");
+        program.Enter("20 STOP");
+
+        program.ReplaceListing(["100 PRINT \"NEW\""]);
+
+        Assert.That(program.GetListing(), Is.EqualTo(new[] { "100 PRINT \"NEW\"" }));
+    }
+
+    [Test]
+    public void ListingImportKeepsTheValidPrefixAndReportsTheBadLine()
+    {
+        var program = new BasicProgram();
+        program.Enter("5 PRINT \"OLD\"");
+
+        var result = program.EnterListingUntilError(
+            "10 PRINT \"GOOD\"\n20 RANDOMIZE USR 1234\n30 PRINT \"UNREACHED\"",
+            replaceExisting: true);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.LastLineNumber, Is.EqualTo(10));
+            Assert.That(result.InvalidLine, Is.EqualTo("20 RANDOMIZE USR 1234"));
+            Assert.That(program.GetListing(), Is.EqualTo(new[] { "10 PRINT \"GOOD\"" }));
+        });
+    }
+
+    [Test]
     public void RejectsUnsupportedProgramLines()
     {
         var program = new BasicProgram();

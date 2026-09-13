@@ -18,6 +18,11 @@ public enum ProgramLineChange
     Unchanged
 }
 
+public readonly record struct BasicListingResult(int? LastLineNumber, string? InvalidLine)
+{
+    public bool IsValid => InvalidLine == null;
+}
+
 public sealed class BasicProgram
 {
     private readonly SortedDictionary<int, BasicProgramLine> m_lines = [];
@@ -141,6 +146,42 @@ public sealed class BasicProgram
         }
 
         return lastLineNumber;
+    }
+
+    public BasicListingResult EnterListingUntilError(string source, bool replaceExisting = false)
+    {
+        var lines = source
+            .ReplaceLineEndings("\n")
+            .Split('\n')
+            .Select(line => line.Trim().ToUpperInvariant())
+            .Where(line => line.Length > 0);
+
+        if (replaceExisting)
+        {
+            Clear();
+        }
+
+        int? lastLineNumber = null;
+        foreach (var line in lines)
+        {
+            try
+            {
+                if (!char.IsDigit(line[0]) || !BasicLineValidator.IsValid(line))
+                {
+                    return new BasicListingResult(lastLineNumber, line);
+                }
+
+                Enter(line);
+                var digitCount = line.TakeWhile(char.IsDigit).Count();
+                lastLineNumber = int.Parse(line[..digitCount]);
+            }
+            catch (BasicSyntaxException)
+            {
+                return new BasicListingResult(lastLineNumber, line);
+            }
+        }
+
+        return new BasicListingResult(lastLineNumber, null);
     }
 
     public IReadOnlyList<string> GetListing(int startLineNumber = 0)

@@ -8,10 +8,14 @@
 // 
 // THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND.
 
+using System.Reflection;
+using System.Text;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using DTC.Core.Extensions;
+using DTC.Core.UI;
 using Material.Icons;
 using ZXBasic.Basic;
 
@@ -19,14 +23,20 @@ namespace ZXBasic;
 
 public partial class MainWindow : Window
 {
+    private static readonly FilePickerFileType BasicFiles = new("BASIC listings") { Patterns = ["*.bas"] };
+    private static readonly FilePickerFileType SnapshotFiles = new("Spectrum snapshots") { Patterns = ["*.sna"] };
     private BasicExecutionSpeed m_executionSpeed = BasicExecutionSpeed.Spectrum;
     private bool m_isCrtEnabled = true;
 
     public MainWindow()
     {
         InitializeComponent();
-        Terminal.FrameRefreshed += (_, _) => CrtOverlay.InvalidateVisual();
-        AddHandler(DragDrop.DropEvent, SnapshotDropped);
+        Terminal.FrameRefreshed += (_, _) =>
+        {
+            CrtOverlay.InvalidateVisual();
+            AmbientDisplay.InvalidateVisual();
+        };
+        AddHandler(DragDrop.DropEvent, FileDropped);
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -38,10 +48,20 @@ public partial class MainWindow : Window
             return;
         }
 
-        var openModifier = OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control;
-        if (e.Key == Key.O && e.KeyModifiers.HasFlag(openModifier))
+        var commandModifier = OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control;
+        if (!e.KeyModifiers.HasFlag(commandModifier))
         {
-            OpenSnapshot();
+            return;
+        }
+
+        if (e.Key == Key.O)
+        {
+            OpenFile();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.S)
+        {
+            SaveFile();
             e.Handled = true;
         }
     }
@@ -75,54 +95,124 @@ public partial class MainWindow : Window
         m_isCrtEnabled = !m_isCrtEnabled;
         Terminal.IsCrtEnabled = m_isCrtEnabled;
         CrtOverlay.IsVisible = m_isCrtEnabled;
+        AmbientDisplay.IsVisible = m_isCrtEnabled;
         CrtCheckIcon.IsVisible = m_isCrtEnabled;
         Terminal.Focus();
     }
 
-    private async void OpenSnapshotClicked(object? sender, RoutedEventArgs e)
+    private async void OpenClicked(object? sender, RoutedEventArgs e)
     {
-        await OpenSnapshotAsync();
+        await OpenFileAsync();
     }
 
-    private async void OpenSnapshot()
+    private async void OpenFile()
     {
-        await OpenSnapshotAsync();
+        await OpenFileAsync();
     }
 
-    private async Task OpenSnapshotAsync()
+    private async Task OpenFileAsync()
     {
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Open Spectrum Snapshot",
+            Title = "Open BASIC Program",
             AllowMultiple = false,
-            FileTypeFilter =
-            [
-                new FilePickerFileType("Spectrum snapshots") { Patterns = ["*.sna"] }
-            ]
+            FileTypeFilter = [BasicFiles, SnapshotFiles]
         });
         if (files.Count == 1)
         {
-            await LoadSnapshotAsync(files[0]);
+            await LoadFileAsync(files[0]);
         }
 
         Terminal.Focus();
     }
 
-    private async void SnapshotDropped(object? sender, DragEventArgs e)
+    private async void SaveClicked(object? sender, RoutedEventArgs e)
+    {
+        await SaveFileAsync();
+    }
+
+    private async void SaveFile()
+    {
+        await SaveFileAsync();
+    }
+
+    private async Task SaveFileAsync()
+    {
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Save BASIC Program",
+            SuggestedFileName = "program.bas",
+            DefaultExtension = "bas",
+            FileTypeChoices = [BasicFiles]
+        });
+        if (file != null)
+        {
+            await using var stream = await file.OpenWriteAsync();
+            stream.SetLength(0);
+            await using var writer = new StreamWriter(stream, new UTF8Encoding(false));
+            await writer.WriteAsync(Terminal.GetListingText());
+        }
+
+        Terminal.Focus();
+    }
+
+    private async void FileDropped(object? sender, DragEventArgs e)
     {
         var file = e.Data.GetFiles()?.OfType<IStorageFile>().FirstOrDefault();
-        if (file != null && string.Equals(Path.GetExtension(file.Name), ".sna", StringComparison.OrdinalIgnoreCase))
+        var extension = file == null ? string.Empty : Path.GetExtension(file.Name);
+        if (file != null && (extension.Equals(".bas", StringComparison.OrdinalIgnoreCase) ||
+                             extension.Equals(".sna", StringComparison.OrdinalIgnoreCase)))
         {
-            await LoadSnapshotAsync(file);
+            await LoadFileAsync(file);
         }
     }
 
-    private async Task LoadSnapshotAsync(IStorageFile file)
+    private async Task LoadFileAsync(IStorageFile file)
     {
+        await Terminal.StopExecutionAsync();
         await using var stream = await file.OpenReadAsync();
-        using var memory = new MemoryStream();
-        await stream.CopyToAsync(memory);
-        Terminal.TryLoadSnapshot(memory.ToArray());
+        if (Path.GetExtension(file.Name).Equals(".sna", StringComparison.OrdinalIgnoreCase))
+        {
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+            Terminal.TryLoadSnapshot(memory.ToArray());
+        }
+        else
+        {
+            using var reader = new StreamReader(stream, Encoding.UTF8, true);
+            Terminal.TryLoadListing(await reader.ReadToEndAsync());
+        }
+        Terminal.Focus();
+    }
+
+    private async void ResetMachineClicked(object? sender, RoutedEventArgs e)
+    {
+        await Terminal.StopExecutionAsync();
+        Terminal.ResetMachine();
+        Terminal.Focus();
+    }
+
+    private void OpenProjectPageClicked(object? sender, RoutedEventArgs e)
+    {
+        new Uri("https://github.com/deanthecoder/ZXBasic").Open();
+        Terminal.Focus();
+    }
+
+    private async void AboutClicked(object? sender, RoutedEventArgs e)
+    {
+        var assembly = Assembly.GetEntryAssembly();
+        var dialog = new AboutDialog(new AboutInfo
+        {
+            Title = "DeanTheCoder ZXBasic",
+            Version = assembly?.GetName().Version?.ToString(3) ?? "0.1",
+            Copyright = "Copyright (c) 2026 Dean Edis",
+            WebsiteUrl = "https://github.com/deanthecoder/ZXBasic",
+            Icon = Terminal.Frame
+        })
+        {
+            ShowInTaskbar = false
+        };
+        await dialog.ShowDialog(this);
         Terminal.Focus();
     }
 }

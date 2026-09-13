@@ -70,6 +70,19 @@ public class BasicInterpreterTests
     }
 
     [Test]
+    public void RunAcceptsDefFnWithoutASpace()
+    {
+        var executor = new BasicStatementExecutor(new SpectrumScreen());
+        var program = new BasicProgram();
+        program.Enter("10 DEFFN S(X)=X+1");
+        program.Enter("20 LET A=FN S(41)");
+
+        new BasicInterpreter(executor).Run(program);
+
+        Assert.That(executor.Runtime.GetVariable("A"), Is.EqualTo(42));
+    }
+
+    [Test]
     public async Task RunAsyncReportsProgressBeforeAProgramCompletes()
     {
         var executor = new BasicStatementExecutor(new SpectrumScreen());
