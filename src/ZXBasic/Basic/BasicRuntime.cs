@@ -337,10 +337,13 @@ public sealed class BasicRuntime
                 continue;
             }
 
+            if (PrintColumn >= SpectrumScreen.Columns)
+            {
+                NewLine();
+            }
+
             Screen.DrawGlyph(PrintColumn, PrintRow, Font[character], Ink, Paper, Bright, Flash, Inverse, Over);
             PrintColumn++;
-            if (PrintColumn == SpectrumScreen.Columns)
-                NewLine();
         }
     }
 

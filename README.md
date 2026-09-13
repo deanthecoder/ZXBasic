@@ -31,6 +31,7 @@ Three complete programs are included as readable BASIC listings; Human Shader an
 - [Human Shader](Examples/HumanShader/HumanShader.bas) — a substantial graphics program inspired by [humanshader.com](https://humanshader.com/). Open [HumanShader.sna](Examples/HumanShader/HumanShader.sna) and select Unlimited speed unless you fancy the original wait.
 - [Conway's Game of Life](Examples/Conway/Conway.bas) — uses the Spectrum attribute map as both its display and working data. Open [Conway.sna](Examples/Conway/Conway.sna) to run it directly.
 - [Mouse Paint](Examples/MousePaint/MousePaint.bas) — hold the left mouse button to draw, click `NEW` to clear, or click a color swatch to change ink.
+- [Joystick Move](Examples/JoystickMove/JoystickMove.bas) — move a `*` with the arrow keys using the Kempston-compatible `IN 31` input port.
 
 ![Conway's Game of Life running through BASIC PEEK and POKE](img/GameOfLife.png)
 
@@ -75,6 +76,7 @@ ZXBasic currently supports the core language needed by sizeable Spectrum program
 - `PLOT`, `DRAW`, curved `DRAW`, `CIRCLE`, `POINT`, `ATTR`, and `SCREEN$`.
 - `INK`, `PAPER`, `BRIGHT`, `FLASH`, `INVERSE`, `OVER`, `BORDER`, and `CLS`.
 - `PEEK`, `POKE`, `CLEAR`, `RANDOMIZE`, `RND`, `INKEY$`, `REM`, and silent `BEEP`.
+- `IN 31` for cursor-key joystick input: right `1`, left `2`, down `4`, and up `8`.
 
 Display memory follows the Spectrum layout: addresses `16384`–`22527` expose its non-linear bitmap rows, and `22528`–`23295` expose the 32×24 color attribute map.
 
@@ -102,7 +104,7 @@ dotnet run --project src/ZXBasic/ZXBasic.csproj
 
 ## Compatibility
 
-ZXBasic interprets BASIC directly; it is not a machine emulator. Z80 machine code and `RANDOMIZE USR` are outside its scope. Hardware-specific `IN`, `OUT`, printer commands, and tape commands are not supported. `BEEP` accepts and observes the requested duration without producing sound.
+ZXBasic interprets BASIC directly; it is not a machine emulator. Z80 machine code and `RANDOMIZE USR` are outside its scope. `IN 31` is available for cursor-key joystick input; other hardware-specific `IN` ports, `OUT`, printer commands, and tape commands are not supported. `BEEP` accepts and observes the requested duration without producing sound.
 
 Snapshot import supports uncompressed 48K `.sna` files and extracts their BASIC program. Other machine state and embedded machine-code routines are not executed.
 

@@ -268,6 +268,23 @@ public class BasicStatementExecutorTests
     }
 
     [Test]
+    public void PrintAtBottomRightWithATrailingSeparatorDefersScrolling()
+    {
+        var screen = new SpectrumScreen();
+        var font = SpectrumFont.FromGlyphs(Enumerable.Repeat((byte)0xFF, 96 * 8).ToArray());
+        var executor = new BasicStatementExecutor(screen, font);
+
+        executor.TryExecute(BasicTokenizer.Tokenize("PRINT AT 21,31;\"*\";"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(screen.IsScreenPixelSet(255, 175), Is.True);
+            Assert.That(executor.Runtime.PrintRow, Is.EqualTo(21));
+            Assert.That(executor.Runtime.PrintColumn, Is.EqualTo(32));
+        });
+    }
+
+    [Test]
     public void PrintAllowsATerminalAtPositioningItem()
     {
         var executor = new BasicStatementExecutor(new SpectrumScreen());

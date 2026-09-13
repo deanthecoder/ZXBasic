@@ -37,6 +37,7 @@ public partial class MainWindow : Window
             AmbientDisplay.InvalidateVisual();
         };
         AddHandler(DragDrop.DropEvent, FileDropped);
+        Closed += (_, _) => Terminal.DisposeJoystickInput();
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
