@@ -31,6 +31,7 @@ public sealed class BasicRuntime
     public SpectrumFont? Font { get; }
     public Random Random { get; private set; } = new();
     public Func<string>? InkeyProvider { get; set; }
+    public Func<int>? JoystickProvider { get; set; }
     public byte Ink { get; set; }
     public byte Paper { get; set; } = 7;
     public bool Bright { get; set; }
@@ -176,6 +177,16 @@ public sealed class BasicRuntime
     public string ReadInkey()
     {
         return InkeyProvider?.Invoke() ?? string.Empty;
+    }
+
+    public int ReadInputPort(int port)
+    {
+        if (port != 31)
+        {
+            throw new BasicSyntaxException("Only joystick port IN 31 is supported.", 0);
+        }
+
+        return JoystickProvider?.Invoke() ?? 0;
     }
 
     public void DefineArray(string name, IReadOnlyList<int> dimensions)

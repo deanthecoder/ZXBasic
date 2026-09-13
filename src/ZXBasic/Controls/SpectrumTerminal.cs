@@ -57,6 +57,7 @@ public sealed class SpectrumTerminal : Control
     private TaskCompletionSource<string>? m_inputCompletion;
     private TaskCompletionSource? m_keyCompletion;
     private string m_pendingInkey = string.Empty;
+    private int m_joystickState;
 
     public event EventHandler? FrameRefreshed;
     public WriteableBitmap Frame => m_frame;
@@ -165,6 +166,7 @@ public sealed class SpectrumTerminal : Control
         RenderOptions.SetBitmapInterpolationMode(this, BitmapInterpolationMode.None);
         m_statementExecutor = new BasicStatementExecutor(m_screen, m_font);
         m_statementExecutor.Runtime.InkeyProvider = ConsumeInkey;
+        m_statementExecutor.Runtime.JoystickProvider = () => m_joystickState;
         m_interpreter = new BasicInterpreter(m_statementExecutor);
         m_interpreter.ExecutionSpeed = BasicExecutionSpeed.Spectrum;
 
@@ -426,6 +428,10 @@ public sealed class SpectrumTerminal : Control
                 CompleteInput();
                 e.Handled = true;
             }
+            else if (!m_isAwaitingInput && SetJoystickButton(e.Key, true))
+            {
+                e.Handled = true;
+            }
 
             if (!m_isAwaitingInput || e.Handled)
             {
@@ -498,6 +504,15 @@ public sealed class SpectrumTerminal : Control
 
         ShowCursor();
         e.Handled = true;
+    }
+
+    protected override void OnKeyUp(KeyEventArgs e)
+    {
+        base.OnKeyUp(e);
+        if (m_isRunning && SetJoystickButton(e.Key, false))
+        {
+            e.Handled = true;
+        }
     }
 
     private async void PasteClipboard()
@@ -833,6 +848,33 @@ public sealed class SpectrumTerminal : Control
         var key = m_pendingInkey;
         m_pendingInkey = string.Empty;
         return key;
+    }
+
+    private bool SetJoystickButton(Key key, bool isPressed)
+    {
+        var bit = key switch
+        {
+            Key.Right => 1,
+            Key.Left => 2,
+            Key.Down => 4,
+            Key.Up => 8,
+            _ => 0
+        };
+        if (bit == 0)
+        {
+            return false;
+        }
+
+        if (isPressed)
+        {
+            m_joystickState |= bit;
+        }
+        else
+        {
+            m_joystickState &= ~bit;
+        }
+
+        return true;
     }
 
     private int? EvaluateOptionalLineNumber(string input)

@@ -351,6 +351,19 @@ public class BasicStatementExecutorTests
     }
 
     [Test]
+    public void LetCanUseTheKempstonJoystickPort()
+    {
+        var executor = new BasicStatementExecutor(new SpectrumScreen());
+        executor.Runtime.JoystickProvider = () => 1;
+        executor.Runtime.SetVariable("B", 15);
+
+        executor.TryExecute(BasicTokenizer.Tokenize(
+            "LET B=B+((INKEY$=\"8\" OR IN 31=1) AND B<26)-((INKEY$=\"5\" OR IN 31=2) AND B>5)"));
+
+        Assert.That(executor.Runtime.GetVariable("B"), Is.EqualTo(16));
+    }
+
+    [Test]
     public void BeepIsSilentButReturnsItsDurationInFiftiethsOfASecond()
     {
         var executor = new BasicStatementExecutor(new SpectrumScreen());

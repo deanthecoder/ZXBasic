@@ -272,6 +272,13 @@ public sealed class BasicExpressionEvaluator
                 return BasicRuntime.GetUdgAddress(character[0]);
             }
 
+            if (token.Keyword == BasicKeyword.In)
+            {
+                m_index++;
+                var port = checked((int)Math.Round(ParseUnary(), MidpointRounding.AwayFromZero));
+                return m_runtime.ReadInputPort(port);
+            }
+
             if (token.Keyword == BasicKeyword.Attr)
             {
                 m_index++;

@@ -145,6 +145,29 @@ public class BasicExpressionEvaluatorTests
         });
     }
 
+    [Test]
+    public void InReadsTheKempstonJoystickPort()
+    {
+        var runtime = new BasicRuntime(new SpectrumScreen())
+        {
+            JoystickProvider = () => 9
+        };
+        var evaluator = new BasicExpressionEvaluator(runtime);
+
+        Assert.That(evaluator.Evaluate(BasicTokenizer.Tokenize("IN 31")), Is.EqualTo(9));
+    }
+
+    [Test]
+    public void InRejectsUnsupportedHardwarePorts()
+    {
+        var evaluator = new BasicExpressionEvaluator(new BasicRuntime(new SpectrumScreen()));
+
+        var exception = Assert.Throws<BasicSyntaxException>(() =>
+            evaluator.Evaluate(BasicTokenizer.Tokenize("IN 32")));
+
+        Assert.That(exception!.Message, Is.EqualTo("Only joystick port IN 31 is supported."));
+    }
+
     [TestCase("\"A\"=\"A\"", 1)]
     [TestCase("\"A\"<>\"B\"", 1)]
     [TestCase("\"A\"<\"B\"", 1)]
