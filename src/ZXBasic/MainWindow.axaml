@@ -44,19 +44,16 @@
             </Button>
 
             <Grid Grid.Column="2"
-                  Width="48"
-                  Height="22"
-                  Margin="8,0,14,0"
-                  VerticalAlignment="Center"
+                  Margin="24,0,8,0"
                   RenderTransformOrigin="0.5,0.5"
-                  ColumnDefinitions="*,*,*,*">
+                  ColumnDefinitions="10,10,10,10">
                 <Grid.RenderTransform>
-                    <SkewTransform AngleX="-20" />
+                    <SkewTransform AngleX="-20" AngleY="0" />
                 </Grid.RenderTransform>
-                <Rectangle Grid.Column="0" Fill="#D62828" />
-                <Rectangle Grid.Column="1" Fill="#FFC300" />
-                <Rectangle Grid.Column="2" Fill="#009E49" />
-                <Rectangle Grid.Column="3" Fill="#00A9E0" />
+                <Rectangle Grid.Column="0" Fill="Red" />
+                <Rectangle Grid.Column="1" Fill="#ffc300" />
+                <Rectangle Grid.Column="2" Fill="#009e00" />
+                <Rectangle Grid.Column="3" Fill="#00aae7" />
             </Grid>
         </Grid>
 
