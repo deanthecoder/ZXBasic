@@ -268,6 +268,23 @@ public class BasicStatementExecutorTests
     }
 
     [Test]
+    public void PrintAtUsesTheMagnitudeOfNegativeCoordinates()
+    {
+        var screen = new SpectrumScreen();
+        var font = SpectrumFont.FromGlyphs(Enumerable.Repeat((byte)0xFF, 96 * 8).ToArray());
+        var executor = new BasicStatementExecutor(screen, font);
+
+        executor.TryExecute(BasicTokenizer.Tokenize("PRINT AT -1,-10;\"X\";"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(screen.IsScreenPixelSet(80, 8), Is.True);
+            Assert.That(executor.Runtime.PrintRow, Is.EqualTo(1));
+            Assert.That(executor.Runtime.PrintColumn, Is.EqualTo(11));
+        });
+    }
+
+    [Test]
     public void PrintAtBottomRightWithATrailingSeparatorDefersScrolling()
     {
         var screen = new SpectrumScreen();
@@ -281,6 +298,54 @@ public class BasicStatementExecutorTests
             Assert.That(screen.IsScreenPixelSet(255, 175), Is.True);
             Assert.That(executor.Runtime.PrintRow, Is.EqualTo(21));
             Assert.That(executor.Runtime.PrintColumn, Is.EqualTo(32));
+        });
+    }
+
+    [Test]
+    public void PrintAtBottomRowDefersScrollingUntilMoreTextIsPrinted()
+    {
+        var screen = new SpectrumScreen();
+        var font = SpectrumFont.FromGlyphs(Enumerable.Repeat((byte)0xFF, 96 * 8).ToArray());
+        var executor = new BasicStatementExecutor(screen, font);
+        executor.TryExecute(BasicTokenizer.Tokenize("PRINT AT 0,0;\"T\";"));
+
+        executor.TryExecute(BasicTokenizer.Tokenize("PRINT AT 21,0;\"B\""));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(screen.IsScreenPixelSet(0, 0), Is.True);
+            Assert.That(screen.IsScreenPixelSet(0, 168), Is.True);
+            Assert.That(executor.Runtime.PrintRow, Is.EqualTo(22));
+        });
+
+        executor.TryExecute(BasicTokenizer.Tokenize("PRINT \"N\";"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(screen.IsScreenPixelSet(0, 0), Is.False);
+            Assert.That(screen.IsScreenPixelSet(0, 160), Is.True);
+            Assert.That(screen.IsScreenPixelSet(0, 168), Is.True);
+            Assert.That(executor.Runtime.PrintRow, Is.EqualTo(21));
+        });
+    }
+
+    [Test]
+    public void PrintAtRepositionsFromBelowBottomRowWithoutScrolling()
+    {
+        var screen = new SpectrumScreen();
+        var font = SpectrumFont.FromGlyphs(Enumerable.Repeat((byte)0xFF, 96 * 8).ToArray());
+        var executor = new BasicStatementExecutor(screen, font);
+        executor.TryExecute(BasicTokenizer.Tokenize("PRINT AT 0,0;\"T\";"));
+        executor.TryExecute(BasicTokenizer.Tokenize("PRINT AT 21,0;\"B\""));
+
+        executor.TryExecute(BasicTokenizer.Tokenize("PRINT AT 10,0;\"X\";"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(screen.IsScreenPixelSet(0, 0), Is.True);
+            Assert.That(screen.IsScreenPixelSet(0, 80), Is.True);
+            Assert.That(screen.IsScreenPixelSet(0, 168), Is.True);
+            Assert.That(executor.Runtime.PrintRow, Is.EqualTo(10));
         });
     }
 
@@ -458,9 +523,9 @@ public class BasicStatementExecutorTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(executor.Runtime.PrintRow, Is.EqualTo(SpectrumScreen.DrawingHeight / 8 - 1));
+            Assert.That(executor.Runtime.PrintRow, Is.EqualTo(SpectrumScreen.DrawingHeight / 8));
             Assert.That(screen.IsScreenPixelSet(0, 0), Is.True);
-            Assert.That(screen.IsScreenPixelSet(0, SpectrumScreen.DrawingHeight - 1), Is.False);
+            Assert.That(screen.IsScreenPixelSet(0, SpectrumScreen.DrawingHeight - 1), Is.True);
         });
     }
 

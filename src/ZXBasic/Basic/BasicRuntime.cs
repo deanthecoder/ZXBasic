@@ -361,6 +361,7 @@ public sealed class BasicRuntime
                 NewLine();
             }
 
+            MakeRoomForPrint();
             DrawCharacter(character);
             PrintColumn++;
         }
@@ -412,13 +413,15 @@ public sealed class BasicRuntime
 
     public void SetPrintPosition(int row, int column)
     {
-        if (row is < 0 or >= PrintRows || column is < 0 or >= SpectrumScreen.Columns)
+        var screenRow = Math.Abs((long)row);
+        var screenColumn = Math.Abs((long)column);
+        if (screenRow >= PrintRows || screenColumn >= SpectrumScreen.Columns)
         {
             throw new BasicSyntaxException("AT position is outside the screen.", 0);
         }
 
-        PrintRow = row;
-        PrintColumn = column;
+        PrintRow = (int)screenRow;
+        PrintColumn = (int)screenColumn;
     }
 
     public void Tab(int column)
@@ -453,12 +456,19 @@ public sealed class BasicRuntime
     public void NewLine()
     {
         PrintColumn = 0;
+        MakeRoomForPrint();
         PrintRow++;
-        if (PrintRow >= PrintRows)
+    }
+
+    private void MakeRoomForPrint()
+    {
+        if (PrintRow < PrintRows)
         {
-            Screen.ScrollUp(Paper, Bright, PrintRows);
-            PrintRow = PrintRows - 1;
+            return;
         }
+
+        Screen.ScrollUp(Paper, Bright, PrintRows);
+        PrintRow = PrintRows - 1;
     }
 
     public void SetRandomSeed(int seed)
