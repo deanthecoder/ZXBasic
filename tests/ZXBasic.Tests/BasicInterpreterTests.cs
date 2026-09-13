@@ -545,6 +545,35 @@ public class BasicInterpreterTests
     }
 
     [Test]
+    public async Task IfThenRunRestartsTheProgram()
+    {
+        var executor = new BasicStatementExecutor(
+            new SpectrumScreen(),
+            SpectrumFont.FromGlyphs(new byte[96 * 8]));
+        var program = new BasicProgram();
+        program.Enter("9600 INPUT \"ANOTHER GAME ?\"; A$");
+        program.Enter("9610 IF A$(1)<>\" \" THEN RUN");
+        var answers = new Queue<string>(["Y", " "]);
+        var promptCount = 0;
+
+        await new BasicInterpreter(executor).RunAsync(
+            program,
+            () => { },
+            inputProvider: (_, _) =>
+            {
+                promptCount++;
+                return Task.FromResult(answers.Dequeue());
+            });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(promptCount, Is.EqualTo(2));
+            Assert.That(answers, Is.Empty);
+            Assert.That(executor.Runtime.GetStringVariable("A$"), Is.EqualTo(" "));
+        });
+    }
+
+    [Test]
     public async Task InputCanReadSeveralVariables()
     {
         var executor = new BasicStatementExecutor(

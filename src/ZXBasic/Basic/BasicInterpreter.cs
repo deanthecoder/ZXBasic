@@ -299,8 +299,11 @@ public sealed class BasicInterpreter
                     throw new BasicSyntaxException("RETURN without GO SUB.", tokens[0].Position);
                 programCounter = calls.Pop();
                 return BasicStatementResult.Continue;
+            case BasicKeyword.Run:
+                ExecuteRun(instruction, instructions, linePositions, loops, calls, ref programCounter);
+                return BasicStatementResult.Continue;
             case BasicKeyword.If:
-                return ExecuteIf(instruction, instructions, linePositions, calls, ref programCounter);
+                return ExecuteIf(instruction, instructions, linePositions, loops, calls, ref programCounter);
             case BasicKeyword.For:
                 ExecuteFor(instruction, instructions, loops, ref programCounter);
                 return BasicStatementResult.Continue;
@@ -323,6 +326,7 @@ public sealed class BasicInterpreter
         Instruction instruction,
         IReadOnlyList<Instruction> instructions,
         IReadOnlyDictionary<int, int> linePositions,
+        List<ForLoop> loops,
         Stack<int> calls,
         ref int programCounter)
     {
@@ -348,35 +352,34 @@ public sealed class BasicInterpreter
             return BasicStatementResult.Continue;
         }
 
-        if (consequent[0].Keyword == BasicKeyword.GoTo)
-        {
-            programCounter = GetTargetPosition(consequent.Skip(1).ToArray(), linePositions, instruction);
-            return BasicStatementResult.Continue;
-        }
+        var consequentInstruction = instruction with { Tokens = consequent };
+        return ExecuteInstruction(
+            consequentInstruction,
+            instructions,
+            linePositions,
+            loops,
+            calls,
+            ref programCounter);
+    }
 
-        if (consequent[0].Keyword == BasicKeyword.GoSub)
-        {
-            calls.Push(programCounter + 1);
-            programCounter = GetTargetPosition(consequent.Skip(1).ToArray(), linePositions, instruction);
-            return BasicStatementResult.Continue;
-        }
+    private void ExecuteRun(
+        Instruction instruction,
+        IReadOnlyList<Instruction> instructions,
+        IReadOnlyDictionary<int, int> linePositions,
+        List<ForLoop> loops,
+        Stack<int> calls,
+        ref int programCounter)
+    {
+        var targetPosition = instruction.Tokens.Count == 1
+            ? 0
+            : GetTargetPosition(instruction.Tokens.Skip(1).ToArray(), linePositions, instruction);
 
-        if (consequent[0].Keyword == BasicKeyword.Return)
-        {
-            if (calls.Count == 0)
-            {
-                throw new BasicSyntaxException("RETURN without GO SUB.", consequent[0].Position);
-            }
-
-            programCounter = calls.Pop();
-            return BasicStatementResult.Continue;
-        }
-
-        var result = m_statementExecutor.Execute(consequent);
-        if (!result.Handled)
-            throw new BasicSyntaxException("The THEN statement is not implemented.", consequent[0].Position);
-        programCounter++;
-        return result;
+        m_statementExecutor.Runtime.ResetForRun();
+        RegisterFunctions(instructions);
+        RegisterData(instructions);
+        loops.Clear();
+        calls.Clear();
+        programCounter = targetPosition;
     }
 
     private void ExecuteFor(
