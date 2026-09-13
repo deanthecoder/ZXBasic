@@ -302,6 +302,25 @@ public class BasicStatementExecutorTests
     }
 
     [Test]
+    public void PrintUsesSpectrumBlockGraphics()
+    {
+        var screen = new SpectrumScreen();
+        var font = SpectrumFont.FromGlyphs(new byte[96 * 8]);
+        var executor = new BasicStatementExecutor(screen, font);
+
+        executor.TryExecute(BasicTokenizer.Tokenize("PRINT CHR$ 135;CHR$ 143;"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(screen.IsScreenPixelSet(0, 0), Is.True);
+            Assert.That(screen.IsScreenPixelSet(0, 4), Is.False);
+            Assert.That(screen.IsScreenPixelSet(7, 4), Is.True);
+            Assert.That(screen.IsScreenPixelSet(8, 0), Is.True);
+            Assert.That(screen.IsScreenPixelSet(8, 7), Is.True);
+        });
+    }
+
+    [Test]
     public void PrintAllowsATerminalAtPositioningItem()
     {
         var executor = new BasicStatementExecutor(new SpectrumScreen());

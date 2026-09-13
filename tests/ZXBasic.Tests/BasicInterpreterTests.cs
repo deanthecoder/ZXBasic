@@ -153,6 +153,22 @@ public class BasicInterpreterTests
     }
 
     [Test]
+    public void IfThenReturnReturnsFromTheCurrentSubroutine()
+    {
+        var executor = new BasicStatementExecutor(new SpectrumScreen());
+        var program = new BasicProgram();
+        program.Enter("10 GOSUB 100");
+        program.Enter("20 LET RESULT=1: STOP");
+        program.Enter("100 LET L$=\"\"");
+        program.Enter("110 IF L$=\"\" THEN RETURN");
+        program.Enter("120 LET RESULT=2: RETURN");
+
+        new BasicInterpreter(executor).Run(program);
+
+        Assert.That(executor.Runtime.GetVariable("RESULT"), Is.EqualTo(1));
+    }
+
+    [Test]
     public void RunAcceptsDefFnWithoutASpace()
     {
         var executor = new BasicStatementExecutor(new SpectrumScreen());

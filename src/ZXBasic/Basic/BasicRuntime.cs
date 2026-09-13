@@ -16,6 +16,8 @@ namespace ZXBasic.Basic;
 public sealed class BasicRuntime
 {
     public const int UdgAddress = 65368;
+    private const char FirstBlockGraphicsCharacter = '\u0080';
+    private const char LastBlockGraphicsCharacter = '\u008f';
     private const char FirstUdgCharacter = '\u0090';
     private const char LastUdgCharacter = '\u00a4';
     private const int PrintRows = SpectrumScreen.DrawingHeight / 8;
@@ -26,6 +28,7 @@ public sealed class BasicRuntime
     private readonly Dictionary<string, BasicUserFunction> m_functions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Stack<IReadOnlyDictionary<string, double>> m_localScopes = new();
     private readonly List<(int LineNumber, BasicDataValue Value)> m_data = [];
+    private readonly byte[] m_blockGraphicsGlyph = new byte[8];
     private readonly byte[] m_udgGlyph = new byte[8];
     private int m_dataPosition;
 
@@ -352,6 +355,12 @@ public sealed class BasicRuntime
 
     private void DrawCharacter(char character)
     {
+        if (character is >= FirstBlockGraphicsCharacter and <= LastBlockGraphicsCharacter)
+        {
+            DrawBlockGraphics(character - FirstBlockGraphicsCharacter);
+            return;
+        }
+
         if (character is >= FirstUdgCharacter and <= LastUdgCharacter)
         {
             var address = UdgAddress + (character - FirstUdgCharacter) * m_udgGlyph.Length;
@@ -365,6 +374,21 @@ public sealed class BasicRuntime
         }
 
         Screen.DrawGlyph(PrintColumn, PrintRow, Font![character], Ink, Paper, Bright, Flash, Inverse, Over);
+    }
+
+    private void DrawBlockGraphics(int blocks)
+    {
+        var top = (blocks & 2) != 0 ? 0xf0 : 0;
+        top |= (blocks & 1) != 0 ? 0x0f : 0;
+        var bottom = (blocks & 8) != 0 ? 0xf0 : 0;
+        bottom |= (blocks & 4) != 0 ? 0x0f : 0;
+        for (var row = 0; row < 4; row++)
+        {
+            m_blockGraphicsGlyph[row] = (byte)top;
+            m_blockGraphicsGlyph[row + 4] = (byte)bottom;
+        }
+
+        Screen.DrawGlyph(PrintColumn, PrintRow, m_blockGraphicsGlyph, Ink, Paper, Bright, Flash, Inverse, Over);
     }
 
     public void WriteNumber(double value)

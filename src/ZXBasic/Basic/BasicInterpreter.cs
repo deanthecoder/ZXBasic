@@ -361,6 +361,17 @@ public sealed class BasicInterpreter
             return BasicStatementResult.Continue;
         }
 
+        if (consequent[0].Keyword == BasicKeyword.Return)
+        {
+            if (calls.Count == 0)
+            {
+                throw new BasicSyntaxException("RETURN without GO SUB.", consequent[0].Position);
+            }
+
+            programCounter = calls.Pop();
+            return BasicStatementResult.Continue;
+        }
+
         var result = m_statementExecutor.Execute(consequent);
         if (!result.Handled)
             throw new BasicSyntaxException("The THEN statement is not implemented.", consequent[0].Position);

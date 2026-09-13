@@ -72,7 +72,7 @@ ZXBasic currently supports the core language needed by sizeable Spectrum program
 - `LET`, `IF`/`THEN`, `FOR`/`NEXT`, `GO TO`, `GO SUB`, `RETURN`, `STOP`, and `PAUSE`.
 - Numeric and string arrays through `DIM`, plus `ERASE`.
 - `DEF FN` / `DEFFN`, `DATA`, `READ`, `RESTORE`, `INPUT`, and `INPUT LINE`.
-- `PRINT`, `AT`, `TAB`, print zones, scrolling, and embedded color controls.
+- `PRINT`, `AT`, `TAB`, print zones, scrolling, embedded color controls, block graphics, and UDGs.
 - `PLOT`, `DRAW`, curved `DRAW`, `CIRCLE`, `POINT`, `ATTR`, and `SCREEN$`.
 - `INK`, `PAPER`, `BRIGHT`, `FLASH`, `INVERSE`, `OVER`, `BORDER`, and `CLS`.
 - `PEEK`, `POKE`, `CLEAR`, `RANDOMIZE`, `RND`, `INKEY$`, `REM`, and silent `BEEP`.
