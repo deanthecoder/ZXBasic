@@ -454,13 +454,15 @@ public sealed class BasicStatementExecutor
                 BasicKeyword.Flash or BasicKeyword.Inverse or BasicKeyword.Over)
             {
                 var controlSeparator = FindNextPrintSeparator(tokens, position + 1);
+                var controlEnd = controlSeparator < 0 ? tokens.Count : controlSeparator;
+                Execute(tokens.Skip(position).Take(controlEnd - position).ToArray());
+                suppressNewLine = true;
                 if (controlSeparator < 0)
                 {
-                    throw new BasicSyntaxException("A PRINT color item needs a separator.", tokens[position].Position);
+                    position = tokens.Count;
+                    continue;
                 }
 
-                Execute(tokens.Skip(position).Take(controlSeparator - position).ToArray());
-                suppressNewLine = true;
                 if (tokens[controlSeparator].Text == ",")
                 {
                     Runtime.AdvanceToNextPrintZone();

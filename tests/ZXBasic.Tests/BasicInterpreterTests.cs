@@ -42,6 +42,31 @@ public class BasicInterpreterTests
     }
 
     [Test]
+    public void RunUsesTheNextAvailableLineWhenTheStartLineIsMissing()
+    {
+        var screen = new SpectrumScreen();
+        var program = new BasicProgram();
+        program.Enter("10 BORDER 1");
+        program.Enter("20 BORDER 6");
+
+        new BasicInterpreter(new BasicStatementExecutor(screen)).Run(program, 15);
+
+        Assert.That(screen.BorderColor, Is.EqualTo(6));
+    }
+
+    [Test]
+    public void RunReportsStatementLostWhenThereIsNoLaterStartLine()
+    {
+        var program = new BasicProgram();
+        program.Enter("10 BORDER 1");
+
+        var exception = Assert.Throws<BasicRuntimeException>(() =>
+            new BasicInterpreter(new BasicStatementExecutor(new SpectrumScreen())).Run(program, 20));
+
+        Assert.That(exception!.Message, Is.EqualTo("STATEMENT LOST."));
+    }
+
+    [Test]
     public void RunAcceptsGotoWithoutASpace()
     {
         var screen = new SpectrumScreen();
@@ -56,11 +81,51 @@ public class BasicInterpreterTests
     }
 
     [Test]
+    public void GotoUsesTheNextAvailableLineWhenTheTargetIsMissing()
+    {
+        var screen = new SpectrumScreen();
+        var program = new BasicProgram();
+        program.Enter("10 GOTO 25");
+        program.Enter("20 BORDER 1");
+        program.Enter("30 BORDER 6");
+
+        new BasicInterpreter(new BasicStatementExecutor(screen)).Run(program);
+
+        Assert.That(screen.BorderColor, Is.EqualTo(6));
+    }
+
+    [Test]
+    public void GotoReportsStatementLostWhenThereIsNoLaterLine()
+    {
+        var program = new BasicProgram();
+        program.Enter("10 GOTO 20");
+
+        var exception = Assert.Throws<BasicRuntimeException>(() =>
+            new BasicInterpreter(new BasicStatementExecutor(new SpectrumScreen())).Run(program));
+
+        Assert.That(exception!.Message, Is.EqualTo("STATEMENT LOST."));
+    }
+
+    [Test]
     public void RunAcceptsGosubWithoutASpace()
     {
         var screen = new SpectrumScreen();
         var program = new BasicProgram();
         program.Enter("10 GOSUB 30");
+        program.Enter("20 STOP");
+        program.Enter("30 BORDER 6:RETURN");
+
+        new BasicInterpreter(new BasicStatementExecutor(screen)).Run(program);
+
+        Assert.That(screen.BorderColor, Is.EqualTo(6));
+    }
+
+    [Test]
+    public void GosubUsesTheNextAvailableLineWhenTheTargetIsMissing()
+    {
+        var screen = new SpectrumScreen();
+        var program = new BasicProgram();
+        program.Enter("10 GOSUB 25");
         program.Enter("20 STOP");
         program.Enter("30 BORDER 6:RETURN");
 

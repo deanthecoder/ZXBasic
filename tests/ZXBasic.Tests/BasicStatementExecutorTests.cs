@@ -335,6 +335,22 @@ public class BasicStatementExecutorTests
     }
 
     [Test]
+    public void PrintAllowsATerminalColorControl()
+    {
+        var screen = new SpectrumScreen();
+        var font = SpectrumFont.FromGlyphs(Enumerable.Repeat((byte)0xFF, 96 * 8).ToArray());
+        var executor = new BasicStatementExecutor(screen, font);
+
+        executor.TryExecute(BasicTokenizer.Tokenize("PRINT AT 0,0; INK 2; PAPER 4;42; BRIGHT 0"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(screen.GetAttribute(0, 0), Is.EqualTo(34));
+            Assert.That(executor.Runtime.PrintColumn, Is.EqualTo(3));
+        });
+    }
+
+    [Test]
     public void BeepIsSilentButReturnsItsDurationInFiftiethsOfASecond()
     {
         var executor = new BasicStatementExecutor(new SpectrumScreen());

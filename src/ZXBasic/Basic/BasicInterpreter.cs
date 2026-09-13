@@ -71,10 +71,13 @@ public sealed class BasicInterpreter
         var programCounter = 0;
         if (startLineNumber.HasValue)
         {
-            if (!linePositions.TryGetValue(startLineNumber.Value, out programCounter))
+            var targetPosition = FindTargetPosition(linePositions, startLineNumber.Value);
+            if (!targetPosition.HasValue)
             {
                 throw new BasicRuntimeException("STATEMENT LOST.", startLineNumber.Value, 1);
             }
+
+            programCounter = targetPosition.Value;
         }
         var executedStatements = 0;
         var lastProgressAt = Environment.TickCount64;
@@ -428,9 +431,21 @@ public sealed class BasicInterpreter
         Instruction instruction)
     {
         var lineNumber = checked((int)Math.Round(m_expressionEvaluator.Evaluate(expression), MidpointRounding.AwayFromZero));
-        if (!linePositions.TryGetValue(lineNumber, out var target))
+        var targetPosition = FindTargetPosition(linePositions, lineNumber);
+        if (!targetPosition.HasValue)
             throw RuntimeError("Statement lost.", instruction);
-        return target;
+        return targetPosition.Value;
+    }
+
+    private static int? FindTargetPosition(IReadOnlyDictionary<int, int> linePositions, int lineNumber)
+    {
+        var targetLineNumber = linePositions.Keys
+            .Where(candidate => candidate >= lineNumber)
+            .DefaultIfEmpty(-1)
+            .Min();
+        if (targetLineNumber < 0)
+            return null;
+        return linePositions[targetLineNumber];
     }
 
     private int FindAfterMatchingNext(
