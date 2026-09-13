@@ -125,6 +125,19 @@ public sealed class BasicRuntime
         m_stringVariables[name] = value;
     }
 
+    public void SetStringCharacter(string name, int position, string value)
+    {
+        var target = GetStringVariable(name);
+        if (position < 1 || position > target.Length)
+        {
+            throw new BasicSyntaxException("String subscript is out of range.", 0);
+        }
+
+        var characters = target.ToCharArray();
+        characters[position - 1] = value.Length == 0 ? ' ' : value[0];
+        SetStringVariable(name, new string(characters));
+    }
+
     public void DefineStringArray(string name, IReadOnlyList<int> dimensions)
     {
         m_stringArrays[name] = new BasicStringArray(dimensions);

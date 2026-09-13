@@ -503,6 +503,19 @@ public class BasicInterpreterTests
     }
 
     [Test]
+    public void IfCanAssignACharacterWithinAScalarString()
+    {
+        var executor = new BasicStatementExecutor(new SpectrumScreen());
+        var program = new BasicProgram();
+        program.Enter("10 LET W$=\"CAT\": LET V$=\"   \": LET G$=\"A\": LET N=2");
+        program.Enter("260 IF W$(N)=G$ THEN LET V$(N)=G$");
+
+        new BasicInterpreter(executor).Run(program);
+
+        Assert.That(executor.Runtime.GetStringVariable("V$"), Is.EqualTo(" A "));
+    }
+
+    [Test]
     public async Task InputReadsNumericAndStringValuesFromTheTerminal()
     {
         var executor = new BasicStatementExecutor(

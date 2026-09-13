@@ -168,7 +168,18 @@ public sealed class BasicStatementExecutor
             }
 
             var indices = EvaluateArguments(tokens, 3, equals - 1).Select(ToInteger).ToArray();
-            Runtime.SetStringArrayValue(tokens[1].Text, indices, stringValue);
+            if (Runtime.TryGetStringArrayRank(tokens[1].Text, out var rank) && rank > 0)
+            {
+                Runtime.SetStringArrayValue(tokens[1].Text, indices, stringValue);
+            }
+            else if (indices.Length == 1)
+            {
+                Runtime.SetStringCharacter(tokens[1].Text, indices[0], stringValue);
+            }
+            else
+            {
+                throw new BasicSyntaxException("Invalid string slice assignment.", tokens[1].Position);
+            }
             return BasicStatementResult.Continue;
         }
 
