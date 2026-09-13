@@ -59,15 +59,27 @@ public class BasicExpressionEvaluatorTests
     public void ReadsLiveMouseVariables()
     {
         var runtime = new BasicRuntime(new SpectrumScreen());
-        runtime.SetMouseState(120, 75, 5);
+        runtime.SetMouseState(100, 60, 0);
         var evaluator = new BasicExpressionEvaluator(runtime);
+        evaluator.Evaluate(BasicTokenizer.Tokenize("_MX"));
+        evaluator.Evaluate(BasicTokenizer.Tokenize("_MY"));
+        runtime.SetMouseState(120, 75, 5);
 
         Assert.Multiple(() =>
         {
             Assert.That(evaluator.Evaluate(BasicTokenizer.Tokenize("_MX")), Is.EqualTo(120));
             Assert.That(evaluator.Evaluate(BasicTokenizer.Tokenize("_MY")), Is.EqualTo(75));
             Assert.That(evaluator.Evaluate(BasicTokenizer.Tokenize("_MB")), Is.EqualTo(5));
+            Assert.That(evaluator.Evaluate(BasicTokenizer.Tokenize("_OMX")), Is.EqualTo(100));
+            Assert.That(evaluator.Evaluate(BasicTokenizer.Tokenize("_OMY")), Is.EqualTo(60));
         });
+    }
+
+    [TestCase("USR \"A\"", BasicRuntime.UdgAddress)]
+    [TestCase("USR \"D\"+7", BasicRuntime.UdgAddress + 31)]
+    public void ResolvesSpectrumUdgAddresses(string expression, int expected)
+    {
+        Assert.That(Evaluate(expression), Is.EqualTo(expected));
     }
 
     [Test]

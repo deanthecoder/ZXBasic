@@ -263,6 +263,15 @@ public sealed class BasicExpressionEvaluator
                 return m_runtime.InvokeFunction(name, ParseArgumentList());
             }
 
+            if (token.Keyword == BasicKeyword.Usr)
+            {
+                m_index++;
+                var character = ParseStringPrimary();
+                if (character.Length != 1)
+                    throw new BasicSyntaxException("USR needs one UDG letter.", token.Position);
+                return BasicRuntime.GetUdgAddress(character[0]);
+            }
+
             if (token.Keyword == BasicKeyword.Attr)
             {
                 m_index++;

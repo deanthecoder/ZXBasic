@@ -20,7 +20,7 @@ ZXBasic recreates the friendly immediacy of programming a ZX Spectrum without em
 - Approximate Spectrum BASIC speed, 10× Fast mode, and Unlimited execution for demanding programs.
 - Press Escape at any time to break into a running program.
 - Load and save readable `.bas` listings, and import tokenized BASIC from 48K `.sna` snapshots through the File menu, `Ctrl/Command+O`, or drag and drop.
-- Read live Spectrum-coordinate mouse input from `_MX`, `_MY`, and `_MB`.
+- Read live Spectrum-coordinate mouse input from `_MX`, `_MY`, `_OMX`, `_OMY`, and `_MB`.
 - Live `PEEK` and `POKE` access to Spectrum bitmap and attribute memory.
 - `RENUM` / `RENUMBER` extension for modern convenience.
 
@@ -80,11 +80,13 @@ Display memory follows the Spectrum layout: addresses `16384`–`22527` expose i
 
 ## Spectrum font
 
-The original 96-character, 8×8 Spectrum font is embedded directly in ZXBasic. No ROM file is required.
+The original 96-character, 8×8 font is extracted from the standard Spectrum 48K ROM at development time and encoded directly in ZXBasic. No ROM file is required at runtime.
 
 ## Mouse extension
 
-Mouse input is available to BASIC programs as three live, read-only numeric variables. `_MX` and `_MY` use Spectrum pixel coordinates, with `(0,0)` at the bottom-left; both are `-1` while the pointer is outside the display. `_MB` is a button bitmask: `1` for left, `2` for right, and `4` for middle.
+Mouse input is available to BASIC programs as live, read-only numeric variables. `_MX` and `_MY` use Spectrum pixel coordinates, with `(0,0)` at the bottom-left. Reading `_MX` samples the latest pointer position; `_OMX` and `_OMY` contain the preceding sample, which makes continuous lines easy to draw when pointer events skip pixels. `_MX` and `_MY` are `-1` while the pointer is outside the display. `_MB` is a button bitmask: `1` for left, `2` for right, and `4` for middle.
+
+The safe Spectrum expression `USR "A"` is supported for locating user-defined graphics data; letters `A` through `U` map to their traditional eight-byte RAM slots. Numeric `USR` and machine-code execution remain unsupported.
 
 ## Build from source
 

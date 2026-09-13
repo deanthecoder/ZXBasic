@@ -23,7 +23,7 @@ public static class BasicLineValidator
     public static bool IsValid(string line)
     {
         var text = line.Trim();
-        if (text.Length == 0 || !HasBalancedQuotesAndParentheses(text) || ContainsUsr(text))
+        if (text.Length == 0 || !HasBalancedQuotesAndParentheses(text))
             return false;
         if (IsRenumberCommand(text))
             return true;
@@ -50,6 +50,9 @@ public static class BasicLineValidator
             return false;
         }
 
+        if (ContainsUnsupportedUsr(tokens))
+            return false;
+
         if (tokens.Count == 0 || tokens[0].Kind != BasicTokenKind.Keyword)
             return false;
 
@@ -58,10 +61,22 @@ public static class BasicLineValidator
             statement.StartsWith(keyword + " ", StringComparison.Ordinal));
     }
 
-    private static bool ContainsUsr(string text)
+    private static bool ContainsUnsupportedUsr(IReadOnlyList<BasicToken> tokens)
     {
-        return text.Split([' ', ':', '(', ')', ','], StringSplitOptions.RemoveEmptyEntries)
-            .Contains("USR", StringComparer.Ordinal);
+        for (var index = 0; index < tokens.Count; index++)
+        {
+            if (tokens[index].Keyword != BasicKeyword.Usr)
+                continue;
+
+            if (index + 1 >= tokens.Count || tokens[index + 1].Kind != BasicTokenKind.String ||
+                tokens[index + 1].Text.Length != 3 ||
+                char.ToUpperInvariant(tokens[index + 1].Text[1]) is < 'A' or > 'U')
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool IsRenumberCommand(string text)

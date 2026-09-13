@@ -15,6 +15,7 @@ namespace ZXBasic.Basic;
 
 public sealed class BasicRuntime
 {
+    public const int UdgAddress = 65368;
     private const int PrintRows = SpectrumScreen.DrawingHeight / 8;
     private readonly Dictionary<string, double> m_variables = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> m_stringVariables = new(StringComparer.OrdinalIgnoreCase);
@@ -42,7 +43,11 @@ public sealed class BasicRuntime
     public int PlotY { get; set; }
     public int MouseX { get; private set; } = -1;
     public int MouseY { get; private set; } = -1;
+    public int OldMouseX { get; private set; } = -1;
+    public int OldMouseY { get; private set; } = -1;
     public int MouseButtons { get; private set; }
+    private int m_sampledMouseX = -1;
+    private int m_sampledMouseY = -1;
 
     public BasicRuntime(SpectrumScreen screen, SpectrumFont? font = null)
     {
@@ -54,11 +59,21 @@ public sealed class BasicRuntime
     public double GetVariable(string name)
     {
         if (name.Equals("_MX", StringComparison.OrdinalIgnoreCase))
-            return MouseX;
+        {
+            OldMouseX = m_sampledMouseX;
+            OldMouseY = m_sampledMouseY;
+            m_sampledMouseX = MouseX;
+            m_sampledMouseY = MouseY;
+            return m_sampledMouseX;
+        }
         if (name.Equals("_MY", StringComparison.OrdinalIgnoreCase))
-            return MouseY;
+            return m_sampledMouseY;
         if (name.Equals("_MB", StringComparison.OrdinalIgnoreCase))
             return MouseButtons;
+        if (name.Equals("_OMX", StringComparison.OrdinalIgnoreCase))
+            return OldMouseX;
+        if (name.Equals("_OMY", StringComparison.OrdinalIgnoreCase))
+            return OldMouseY;
         if (m_localScopes.Count > 0 && m_localScopes.Peek().TryGetValue(name, out var localValue))
             return localValue;
         return m_variables.GetValueOrDefault(name);
@@ -69,6 +84,14 @@ public sealed class BasicRuntime
         MouseX = x;
         MouseY = y;
         MouseButtons = buttons;
+    }
+
+    public static int GetUdgAddress(char character)
+    {
+        var letter = char.ToUpperInvariant(character);
+        if (letter is < 'A' or > 'U')
+            throw new BasicSyntaxException("USR needs a UDG letter from A to U.", 0);
+        return UdgAddress + (letter - 'A') * 8;
     }
 
     public void SetVariable(string name, double value)

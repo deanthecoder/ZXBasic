@@ -14,6 +14,12 @@ namespace ZXBasic.Tests;
 
 public class BasicLineValidatorTests
 {
+    [Test]
+    public void AcceptsSafeUdgUsrExpressions()
+    {
+        Assert.That(BasicLineValidator.IsValid(
+            "9000 RESTORE 9100: FOR F=USR \"A\" TO USR \"D\"+7: READ A: POKE F,A: NEXT F"), Is.True);
+    }
     [TestCase("10 BORDER 1")]
     [TestCase("60 LET S=INT (80+30*SIN ((SQR (A*A+T*T))/12)-.7*T)")]
     [TestCase("120 PAUSE 0")]
