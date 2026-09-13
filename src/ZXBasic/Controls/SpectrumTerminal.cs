@@ -41,6 +41,7 @@ public sealed class SpectrumTerminal : Control
     private int? m_selectedLineNumber;
     private bool m_isCrtEnabled = true;
     private string m_input = string.Empty;
+    private string m_inputPrompt = string.Empty;
     private int m_cursor;
     private bool m_cursorVisible = true;
     private bool m_flashPhase;
@@ -546,7 +547,7 @@ public sealed class SpectrumTerminal : Control
             SetOutputLines(m_program.GetAutomaticListing(
                 result.LastLineNumber.Value,
                 SpectrumScreen.Columns,
-                SpectrumScreen.Rows - 1));
+                SpectrumScreen.Rows - 2));
         }
         catch (BasicSyntaxException)
         {
@@ -613,7 +614,7 @@ public sealed class SpectrumTerminal : Control
             SetOutputLines(m_program.GetAutomaticListing(
                 currentLineNumber,
                 SpectrumScreen.Columns,
-                SpectrumScreen.Rows - 1));
+                SpectrumScreen.Rows - 2));
         }
         else if (input == "LIST" || input.StartsWith("LIST ", StringComparison.Ordinal))
         {
@@ -692,6 +693,8 @@ public sealed class SpectrumTerminal : Control
                 {
                     m_runCompletion = null;
                 }
+
+                RefreshFrame();
             }
         }
         else
@@ -765,11 +768,12 @@ public sealed class SpectrumTerminal : Control
         runtime.NewLine();
     }
 
-    private async Task<string> ReadInputAsync(CancellationToken cancellationToken)
+    private async Task<string> ReadInputAsync(string prompt, CancellationToken cancellationToken)
     {
         var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         m_inputCompletion = completion;
         m_isAwaitingInput = true;
+        m_inputPrompt = prompt;
         m_input = string.Empty;
         m_cursor = 0;
         ShowCursor();
@@ -783,6 +787,7 @@ public sealed class SpectrumTerminal : Control
             {
                 m_inputCompletion = null;
                 m_isAwaitingInput = false;
+                m_inputPrompt = string.Empty;
             }
         }
     }
@@ -868,11 +873,11 @@ public sealed class SpectrumTerminal : Control
         var row = 0;
         foreach (var line in m_outputLines.Skip(m_outputLineOffset))
         {
-            if (row >= SpectrumScreen.Rows - 1)
+            if (row >= SpectrumScreen.Rows - 2)
                 break;
 
             var displayLine = MarkSelectedListingLine(line);
-            var availableCharacters = (SpectrumScreen.Rows - 1 - row) * SpectrumScreen.Columns;
+            var availableCharacters = (SpectrumScreen.Rows - 2 - row) * SpectrumScreen.Columns;
             var visibleLine = displayLine[..Math.Min(displayLine.Length, availableCharacters)];
             m_screen.DrawText(0, row, visibleLine, m_font);
             var requiredRows = Math.Max(1, (visibleLine.Length + SpectrumScreen.Columns - 1) / SpectrumScreen.Columns);
@@ -962,20 +967,25 @@ public sealed class SpectrumTerminal : Control
 
     private void DrawEditor(SpectrumScreen screen)
     {
-        screen.ClearTextRow(SpectrumScreen.Rows - 1);
+        var paper = screen.BorderColor;
+        var ink = paper < 4 ? (byte)7 : (byte)0;
+        screen.ClearTextRow(SpectrumScreen.Rows - 2, paper);
+        screen.ClearTextRow(SpectrumScreen.Rows - 1, paper);
         const int editorCharacters = SpectrumScreen.Columns - 1;
-        var viewportStart = Math.Max(0, m_cursor - editorCharacters + 1);
-        var visibleInput = m_input[viewportStart..];
+        var editorText = m_inputPrompt + m_input;
+        var editorCursor = m_inputPrompt.Length + m_cursor;
+        var viewportStart = Math.Max(0, editorCursor - editorCharacters + 1);
+        var visibleInput = editorText[viewportStart..];
         if (visibleInput.Length > editorCharacters)
             visibleInput = visibleInput[..editorCharacters];
 
-        screen.DrawText(0, 23, visibleInput, m_font);
+        screen.DrawText(0, SpectrumScreen.Rows - 1, visibleInput, m_font, ink, paper);
         if (!m_cursorVisible)
             return;
 
-        var cursorPosition = m_cursor - viewportStart;
+        var cursorPosition = editorCursor - viewportStart;
         var cursorCharacter = m_hasError ? 'E' : GetCursorCharacter();
-        screen.DrawGlyph(cursorPosition, 23, m_font[cursorCharacter], 7, 0);
+        screen.DrawGlyph(cursorPosition, SpectrumScreen.Rows - 1, m_font[cursorCharacter], ink, paper);
     }
 
     private char GetCursorCharacter()

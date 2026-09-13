@@ -42,7 +42,7 @@ public sealed class BasicInterpreter
         Action onProgress,
         CancellationToken cancellationToken = default,
         int? startLineNumber = null,
-        Func<CancellationToken, Task<string>>? inputProvider = null,
+        Func<string, CancellationToken, Task<string>>? inputProvider = null,
         Func<int, CancellationToken, Task>? pauseProvider = null)
     {
         ArgumentNullException.ThrowIfNull(onProgress);
@@ -55,7 +55,7 @@ public sealed class BasicInterpreter
         bool yieldForProgress,
         CancellationToken cancellationToken,
         int? startLineNumber,
-        Func<CancellationToken, Task<string>>? inputProvider = null,
+        Func<string, CancellationToken, Task<string>>? inputProvider = null,
         Func<int, CancellationToken, Task>? pauseProvider = null)
     {
         m_statementExecutor.Runtime.ResetForRun();
@@ -164,7 +164,7 @@ public sealed class BasicInterpreter
 
     private async Task ExecuteInputAsync(
         Instruction instruction,
-        Func<CancellationToken, Task<string>>? inputProvider,
+        Func<string, CancellationToken, Task<string>>? inputProvider,
         CancellationToken cancellationToken)
     {
         if (inputProvider == null)
@@ -174,10 +174,6 @@ public sealed class BasicInterpreter
 
         var tokens = instruction.Tokens;
         var position = 1;
-        if (position < tokens.Count && tokens[position].Keyword == BasicKeyword.Line)
-        {
-            position++;
-        }
 
         while (position < tokens.Count)
         {
@@ -193,12 +189,23 @@ public sealed class BasicInterpreter
                 position++;
             }
 
+            var lineInput = position < tokens.Count && tokens[position].Keyword == BasicKeyword.Line;
+            if (lineInput)
+            {
+                position++;
+            }
+
             if (position >= tokens.Count || tokens[position].Kind != BasicTokenKind.Identifier)
             {
                 throw new BasicSyntaxException("INPUT needs a variable.", tokens[0].Position);
             }
 
             var variable = tokens[position++].Text;
+            if (lineInput && !variable.EndsWith('$'))
+            {
+                throw new BasicSyntaxException("INPUT LINE needs a string variable.", tokens[0].Position);
+            }
+
             int[]? indices = null;
             if (position < tokens.Count && tokens[position].Text == "(")
             {
@@ -225,8 +232,7 @@ public sealed class BasicInterpreter
                 indices = EvaluateArguments(tokens, argumentStart, position - 1);
             }
 
-            m_statementExecutor.Runtime.Write(prompt);
-            var entered = await inputProvider(cancellationToken);
+            var entered = await inputProvider(prompt, cancellationToken);
             if (variable.EndsWith('$'))
             {
                 if (indices == null)
@@ -251,8 +257,6 @@ public sealed class BasicInterpreter
                     m_statementExecutor.Runtime.SetArrayValue(variable, indices, value);
                 }
             }
-            m_statementExecutor.Runtime.NewLine();
-
             if (position == tokens.Count)
             {
                 break;

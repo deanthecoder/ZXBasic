@@ -49,6 +49,25 @@ public class SpectrumScreenTests
     }
 
     [Test]
+    public void ClearingReservedEditorRowsUsesTheBorderPaperColor()
+    {
+        var screen = new SpectrumScreen { BorderColor = 3 };
+        var pixels = new uint[SpectrumScreen.FrameWidth * SpectrumScreen.FrameHeight];
+
+        screen.ClearTextRow(22, screen.BorderColor);
+        screen.ClearTextRow(23, screen.BorderColor);
+        screen.Render(pixels);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(pixels[(SpectrumScreen.BorderY + 176) * SpectrumScreen.FrameWidth + SpectrumScreen.BorderX],
+                Is.EqualTo(SpectrumPalette.Bgra[3]));
+            Assert.That(pixels[(SpectrumScreen.BorderY + 191) * SpectrumScreen.FrameWidth + SpectrumScreen.BorderX],
+                Is.EqualTo(SpectrumPalette.Bgra[3]));
+        });
+    }
+
+    [Test]
     public void FlashSwapsInkAndPaperDuringTheFlashPhase()
     {
         var screen = new SpectrumScreen();

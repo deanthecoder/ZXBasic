@@ -270,6 +270,22 @@ public class BasicInterpreterTests
     }
 
     [Test]
+    public void LoadsUdgDataThroughSafeUsrAddresses()
+    {
+        var executor = new BasicStatementExecutor(new SpectrumScreen());
+        var program = new BasicProgram();
+        program.Enter("9000 RESTORE 9100: FOR F=USR \"A\" TO USR \"D\"+7: READ A: POKE F,A: NEXT F");
+        program.Enter("9010 STOP");
+        program.Enter("9100 DATA 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32");
+
+        new BasicInterpreter(executor).Run(program, 9000);
+
+        Assert.That(
+            Enumerable.Range(0, 32).Select(offset => executor.Runtime.Memory.Peek(BasicRuntime.UdgAddress + offset)),
+            Is.EqualTo(Enumerable.Range(1, 32)));
+    }
+
+    [Test]
     public void NextAcceptsACommaSeparatedVariableList()
     {
         var executor = new BasicStatementExecutor(new SpectrumScreen());
@@ -397,16 +413,22 @@ public class BasicInterpreterTests
         program.Enter("10 INPUT \"AGE? \";A");
         program.Enter("20 INPUT N$");
         var answers = new Queue<string>(["21", "DEAN"]);
+        var prompts = new List<string>();
 
         await new BasicInterpreter(executor).RunAsync(
             program,
             () => { },
-            inputProvider: _ => Task.FromResult(answers.Dequeue()));
+            inputProvider: (prompt, _) =>
+            {
+                prompts.Add(prompt);
+                return Task.FromResult(answers.Dequeue());
+            });
 
         Assert.Multiple(() =>
         {
             Assert.That(executor.Runtime.GetVariable("A"), Is.EqualTo(21));
             Assert.That(executor.Runtime.GetStringVariable("N$"), Is.EqualTo("DEAN"));
+            Assert.That(prompts, Is.EqualTo(new[] { "AGE? ", "? " }));
         });
     }
 
@@ -423,7 +445,7 @@ public class BasicInterpreterTests
         await new BasicInterpreter(executor).RunAsync(
             program,
             () => { },
-            inputProvider: _ => Task.FromResult(answers.Dequeue()));
+            inputProvider: (_, _) => Task.FromResult(answers.Dequeue()));
 
         Assert.Multiple(() =>
         {
@@ -445,9 +467,50 @@ public class BasicInterpreterTests
         await new BasicInterpreter(executor).RunAsync(
             program,
             () => { },
-            inputProvider: _ => Task.FromResult("HELLO, WORLD"));
+            inputProvider: (_, _) => Task.FromResult("HELLO, WORLD"));
 
         Assert.That(executor.Runtime.GetStringVariable("A$"), Is.EqualTo("HELLO, WORLD"));
+    }
+
+    [Test]
+    public async Task InputLineCanFollowAPrompt()
+    {
+        var executor = new BasicStatementExecutor(
+            new SpectrumScreen(),
+            SpectrumFont.FromGlyphs(new byte[96 * 8]));
+        var program = new BasicProgram();
+        program.Enter("10 INPUT \"LEVEL? (0-9) \"; LINE A$");
+        string? receivedPrompt = null;
+
+        await new BasicInterpreter(executor).RunAsync(
+            program,
+            () => { },
+            inputProvider: (prompt, _) =>
+            {
+                receivedPrompt = prompt;
+                return Task.FromResult("WORLD");
+            });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(receivedPrompt, Is.EqualTo("LEVEL? (0-9) "));
+            Assert.That(executor.Runtime.GetStringVariable("A$"), Is.EqualTo("WORLD"));
+        });
+    }
+
+    [Test]
+    public void InputLineRejectsANumericVariable()
+    {
+        var program = new BasicProgram();
+        program.Enter("10 INPUT LINE A");
+
+        var exception = Assert.ThrowsAsync<BasicRuntimeException>(async () =>
+            await new BasicInterpreter(new BasicStatementExecutor(new SpectrumScreen())).RunAsync(
+                program,
+                () => { },
+                inputProvider: (_, _) => Task.FromResult("42")));
+
+        Assert.That(exception!.Message, Is.EqualTo("INPUT LINE NEEDS A STRING VARIABLE."));
     }
 
     [Test]
@@ -463,7 +526,7 @@ public class BasicInterpreterTests
         await new BasicInterpreter(executor).RunAsync(
             program,
             () => { },
-            inputProvider: _ => Task.FromResult("21*2"));
+            inputProvider: (_, _) => Task.FromResult("21*2"));
 
         Assert.That(executor.Runtime.GetArrayValue("A", [2]), Is.EqualTo(42));
     }
@@ -481,7 +544,7 @@ public class BasicInterpreterTests
         await new BasicInterpreter(executor).RunAsync(
             program,
             () => { },
-            inputProvider: _ => Task.FromResult("ZX"));
+            inputProvider: (_, _) => Task.FromResult("ZX"));
 
         Assert.That(executor.Runtime.GetStringArrayValue("A$", [2]), Is.EqualTo("ZX   "));
     }
