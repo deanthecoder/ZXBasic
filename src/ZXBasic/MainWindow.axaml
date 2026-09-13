@@ -1,0 +1,54 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:ZXBasic.Controls"
+        xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        x:Class="ZXBasic.MainWindow"
+        Width="960"
+        Height="720"
+        MinWidth="640"
+        MinHeight="480"
+        Background="Black"
+        DragDrop.AllowDrop="True"
+        Title="ZXBasic">
+    <Grid RowDefinitions="Auto,*">
+        <Grid ColumnDefinitions="*,Auto" Background="#212121">
+            <Menu Background="Transparent">
+                <MenuItem Header="File">
+                    <MenuItem Header="_Open Snapshot..." InputGesture="{OnPlatform 'Ctrl+O', macOS='⌘+O'}" Click="OpenSnapshotClicked" />
+                </MenuItem>
+                <MenuItem Header="Display">
+                    <MenuItem Header="CRT effect" Click="ToggleCrtClicked">
+                        <MenuItem.Icon>
+                            <icons:MaterialIcon x:Name="CrtCheckIcon" Kind="Tick" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                </MenuItem>
+            </Menu>
+
+            <Button x:Name="SpeedButton"
+                    Grid.Column="1"
+                    Focusable="False"
+                    Theme="{DynamicResource MaterialFlatButton}"
+                    Foreground="White"
+                    Click="RotateSpeedClicked"
+                    ToolTip.Tip="Execution speed: Spectrum">
+                <icons:MaterialIcon x:Name="SpeedIcon" Width="24" Height="24" Kind="Walk" />
+            </Button>
+        </Grid>
+
+        <Viewbox Grid.Row="1" Stretch="Uniform">
+            <Panel Width="320" Height="240">
+                <controls:SpectrumTerminal x:Name="Terminal" />
+                <Image x:Name="CrtOverlay"
+                       Source="{Binding CrtFrame, ElementName=Terminal}"
+                       Stretch="Fill"
+                       IsHitTestVisible="False"
+                       Opacity="0.4">
+                    <Image.Effect>
+                        <BlurEffect Radius="0.1" />
+                    </Image.Effect>
+                </Image>
+            </Panel>
+        </Viewbox>
+    </Grid>
+</Window>
