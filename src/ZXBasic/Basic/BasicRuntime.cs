@@ -16,6 +16,8 @@ namespace ZXBasic.Basic;
 public sealed class BasicRuntime
 {
     public const int UdgAddress = 65368;
+    private const char FirstUdgCharacter = '\u0090';
+    private const char LastUdgCharacter = '\u00a4';
     private const int PrintRows = SpectrumScreen.DrawingHeight / 8;
     private readonly Dictionary<string, double> m_variables = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> m_stringVariables = new(StringComparer.OrdinalIgnoreCase);
@@ -24,6 +26,7 @@ public sealed class BasicRuntime
     private readonly Dictionary<string, BasicUserFunction> m_functions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Stack<IReadOnlyDictionary<string, double>> m_localScopes = new();
     private readonly List<(int LineNumber, BasicDataValue Value)> m_data = [];
+    private readonly byte[] m_udgGlyph = new byte[8];
     private int m_dataPosition;
 
     public SpectrumScreen Screen { get; }
@@ -342,9 +345,26 @@ public sealed class BasicRuntime
                 NewLine();
             }
 
-            Screen.DrawGlyph(PrintColumn, PrintRow, Font[character], Ink, Paper, Bright, Flash, Inverse, Over);
+            DrawCharacter(character);
             PrintColumn++;
         }
+    }
+
+    private void DrawCharacter(char character)
+    {
+        if (character is >= FirstUdgCharacter and <= LastUdgCharacter)
+        {
+            var address = UdgAddress + (character - FirstUdgCharacter) * m_udgGlyph.Length;
+            for (var index = 0; index < m_udgGlyph.Length; index++)
+            {
+                m_udgGlyph[index] = Memory.Peek(address + index);
+            }
+
+            Screen.DrawGlyph(PrintColumn, PrintRow, m_udgGlyph, Ink, Paper, Bright, Flash, Inverse, Over);
+            return;
+        }
+
+        Screen.DrawGlyph(PrintColumn, PrintRow, Font![character], Ink, Paper, Bright, Flash, Inverse, Over);
     }
 
     public void WriteNumber(double value)
