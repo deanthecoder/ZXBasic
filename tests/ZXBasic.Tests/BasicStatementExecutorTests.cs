@@ -268,6 +268,20 @@ public class BasicStatementExecutorTests
     }
 
     [Test]
+    public void PrintAllowsATerminalAtPositioningItem()
+    {
+        var executor = new BasicStatementExecutor(new SpectrumScreen());
+
+        executor.TryExecute(BasicTokenizer.Tokenize("PRINT AT 15,0"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(executor.Runtime.PrintRow, Is.EqualTo(15));
+            Assert.That(executor.Runtime.PrintColumn, Is.Zero);
+        });
+    }
+
+    [Test]
     public void PrintCommaAdvancesToTheNextSixteenColumnZone()
     {
         var screen = new SpectrumScreen();

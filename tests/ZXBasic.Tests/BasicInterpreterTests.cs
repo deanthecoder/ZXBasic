@@ -67,6 +67,24 @@ public class BasicInterpreterTests
     }
 
     [Test]
+    public void PrintAtCanEndBeforeTheNextStatement()
+    {
+        var executor = new BasicStatementExecutor(new SpectrumScreen());
+        var program = new BasicProgram();
+        program.Enter("2010 PRINT AT 15,0: INK 0: PAPER 7");
+
+        new BasicInterpreter(executor).Run(program);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(executor.Runtime.PrintRow, Is.EqualTo(15));
+            Assert.That(executor.Runtime.PrintColumn, Is.Zero);
+            Assert.That(executor.Runtime.Ink, Is.Zero);
+            Assert.That(executor.Runtime.Paper, Is.EqualTo(7));
+        });
+    }
+
+    [Test]
     public void RunAcceptsGotoWithoutASpace()
     {
         var screen = new SpectrumScreen();

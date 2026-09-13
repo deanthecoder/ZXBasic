@@ -479,18 +479,29 @@ public sealed class BasicStatementExecutor
             {
                 var coordinateComma = FindTopLevel(tokens, position + 1, ",");
                 var controlSeparator = coordinateComma < 0 ? -1 : FindNextPrintSeparator(tokens, coordinateComma + 1);
-                if (coordinateComma < 0 || controlSeparator < 0)
+                if (coordinateComma < 0)
                 {
-                    throw new BasicSyntaxException("PRINT AT needs row,column followed by a separator.", tokens[position].Position);
+                    throw new BasicSyntaxException("PRINT AT needs row and column.", tokens[position].Position);
                 }
 
+                var controlEnd = controlSeparator < 0 ? tokens.Count : controlSeparator;
                 var row = ToInteger(Evaluate(tokens, position + 1, coordinateComma));
-                var column = ToInteger(Evaluate(tokens, coordinateComma + 1, controlSeparator));
+                var column = ToInteger(Evaluate(tokens, coordinateComma + 1, controlEnd));
                 Runtime.SetPrintPosition(row, column);
                 suppressNewLine = true;
+                if (controlSeparator < 0)
+                {
+                    position = tokens.Count;
+                    continue;
+                }
+
                 if (tokens[controlSeparator].Text == ",")
                 {
                     Runtime.AdvanceToNextPrintZone();
+                }
+                else if (tokens[controlSeparator].Text == "'")
+                {
+                    Runtime.NewLine();
                 }
                 position = controlSeparator + 1;
                 continue;
@@ -499,16 +510,22 @@ public sealed class BasicStatementExecutor
             if (tokens[position].Keyword == BasicKeyword.Tab)
             {
                 var controlSeparator = FindNextPrintSeparator(tokens, position + 1);
+                var controlEnd = controlSeparator < 0 ? tokens.Count : controlSeparator;
+                Runtime.Tab(ToInteger(Evaluate(tokens, position + 1, controlEnd)));
+                suppressNewLine = true;
                 if (controlSeparator < 0)
                 {
-                    throw new BasicSyntaxException("PRINT TAB needs a column followed by a separator.", tokens[position].Position);
+                    position = tokens.Count;
+                    continue;
                 }
 
-                Runtime.Tab(ToInteger(Evaluate(tokens, position + 1, controlSeparator)));
-                suppressNewLine = true;
                 if (tokens[controlSeparator].Text == ",")
                 {
                     Runtime.AdvanceToNextPrintZone();
+                }
+                else if (tokens[controlSeparator].Text == "'")
+                {
+                    Runtime.NewLine();
                 }
                 position = controlSeparator + 1;
                 continue;
