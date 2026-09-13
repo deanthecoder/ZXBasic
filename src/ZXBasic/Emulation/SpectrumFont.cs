@@ -8,15 +8,12 @@
 // 
 // THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND.
 
-using Avalonia.Platform;
-
 namespace ZXBasic.Emulation;
 
 public sealed class SpectrumFont
 {
     private const int GlyphCount = 96;
     private const int BytesPerGlyph = 8;
-    private static readonly Uri FontUri = new("avares://ZXBasic/Assets/Fonts/ZXSpectrum/zx_spectrum_font.bin");
     private readonly byte[] m_glyphs;
 
     private SpectrumFont(byte[] glyphs)
@@ -43,10 +40,7 @@ public sealed class SpectrumFont
 
     public static SpectrumFont Load()
     {
-        using var stream = AssetLoader.Open(FontUri);
-        using var memory = new MemoryStream();
-        stream.CopyTo(memory);
-        return FromGlyphs(memory.ToArray());
+        return FromGlyphs(SpectrumFontData.Glyphs);
     }
 
     public static SpectrumFont FromGlyphs(ReadOnlySpan<byte> glyphs)

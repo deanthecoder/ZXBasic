@@ -11,10 +11,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="Assets/**" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="../../DTC.Core/DTC.Core/DTC.Core.csproj" />
   </ItemGroup>
 
