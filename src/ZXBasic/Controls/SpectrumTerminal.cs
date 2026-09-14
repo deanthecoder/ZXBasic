@@ -342,19 +342,24 @@ public sealed class SpectrumTerminal : Control
 
     private (int X, int Y)? GetDisplayPosition(Point position)
     {
-        var scale = Math.Min(Bounds.Width / SpectrumScreen.FrameWidth, Bounds.Height / SpectrumScreen.FrameHeight);
+        return GetBasicDisplayPosition(position, Bounds);
+    }
+
+    internal static (int X, int Y)? GetBasicDisplayPosition(Point position, Rect bounds)
+    {
+        var scale = Math.Min(bounds.Width / SpectrumScreen.FrameWidth, bounds.Height / SpectrumScreen.FrameHeight);
         var width = SpectrumScreen.FrameWidth * scale;
         var height = SpectrumScreen.FrameHeight * scale;
-        var frameX = (position.X - (Bounds.Width - width) / 2) / scale;
-        var frameY = (position.Y - (Bounds.Height - height) / 2) / scale;
+        var frameX = (position.X - (bounds.Width - width) / 2) / scale;
+        var frameY = (position.Y - (bounds.Height - height) / 2) / scale;
         if (frameX < SpectrumScreen.BorderX || frameX >= SpectrumScreen.BorderX + SpectrumScreen.Width ||
-            frameY < SpectrumScreen.BorderY || frameY >= SpectrumScreen.BorderY + SpectrumScreen.Height)
+            frameY < SpectrumScreen.BorderY || frameY >= SpectrumScreen.BorderY + SpectrumScreen.DrawingHeight)
         {
             return null;
         }
 
         return ((int)(frameX - SpectrumScreen.BorderX),
-            SpectrumScreen.Height - 1 - (int)(frameY - SpectrumScreen.BorderY));
+            SpectrumScreen.DrawingHeight - 1 - (int)(frameY - SpectrumScreen.BorderY));
     }
 
     private int? GetTextRow(Point position)
