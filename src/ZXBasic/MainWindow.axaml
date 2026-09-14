@@ -9,6 +9,7 @@
         MinHeight="480"
         Background="Black"
         DragDrop.AllowDrop="True"
+        Icon="/App.ico"
         Title="DeanTheCoder ZXBasic">
     <Grid RowDefinitions="Auto,*">
         <Grid ColumnDefinitions="*,Auto,Auto" Background="#212121">

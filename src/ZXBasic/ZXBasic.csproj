@@ -6,9 +6,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>App.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <RootNamespace>ZXBasic</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="App.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../../DTC.Core/DTC.Core/DTC.Core.csproj" />
