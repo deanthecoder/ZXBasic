@@ -26,12 +26,16 @@ ZXBasic recreates the friendly immediacy of programming a ZX Spectrum without em
 
 ## Included examples
 
-Three complete programs are included as readable BASIC listings; Human Shader and Conway also include ready-to-open snapshots:
+Eight complete programs are included as readable BASIC listings; Human Shader and Conway also include ready-to-open snapshots:
 
 - [Human Shader](Examples/HumanShader/HumanShader.bas) — a substantial graphics program inspired by [humanshader.com](https://humanshader.com/). Open [HumanShader.sna](Examples/HumanShader/HumanShader.sna) and select Unlimited speed unless you fancy the original wait.
 - [Conway's Game of Life](Examples/Conway/Conway.bas) — uses the Spectrum attribute map as both its display and working data. Open [Conway.sna](Examples/Conway/Conway.sna) to run it directly.
 - [Mouse Paint](Examples/MousePaint/MousePaint.bas) — hold the left mouse button to draw, click `NEW` to clear, or click a color swatch to change ink.
 - [Joystick Move](Examples/JoystickMove/JoystickMove.bas) — move a `*` with the arrow keys using the Kempston-compatible `IN 31` input port.
+- [3D Spinning Cube](Examples/CubeSpinner/CubeSpinner.bas) — rotate and project a wireframe cube using arrays, trigonometry, and `DRAW`.
+- [DTC](Examples/DTC/DTC.bas) — define two custom characters with `POKE`, then print them with `CHR$`.
+- [Union Jack](Examples/UnionJack/UnionJack.bas) — draw the Union Jack with Spectrum graphics commands and color attributes.
+- [Web](Examples/Web/Web.bas) — animate a colorful web pattern with repeated `PLOT` and `DRAW` operations.
 
 ![Conway's Game of Life running through BASIC PEEK and POKE](img/GameOfLife.png)
 
