@@ -153,6 +153,21 @@ public class BasicInterpreterTests
     }
 
     [Test]
+    public void ClearRemovesTheGosubStack()
+    {
+        var program = new BasicProgram();
+        program.Enter("10 GO SUB 100");
+        program.Enter("20 STOP");
+        program.Enter("100 CLEAR");
+        program.Enter("110 RETURN");
+
+        var exception = Assert.Throws<BasicRuntimeException>(() =>
+            new BasicInterpreter(new BasicStatementExecutor(new SpectrumScreen())).Run(program));
+
+        Assert.That(exception!.Message, Is.EqualTo("RETURN WITHOUT GO SUB."));
+    }
+
+    [Test]
     public void IfThenReturnReturnsFromTheCurrentSubroutine()
     {
         var executor = new BasicStatementExecutor(new SpectrumScreen());
@@ -186,6 +201,7 @@ public class BasicInterpreterTests
     {
         var executor = new BasicStatementExecutor(new SpectrumScreen());
         var program = new BasicProgram();
+        program.Enter("5 LET A=0");
         program.Enter("10 FOR I=1 TO 600");
         program.Enter("20 LET A=A+1");
         program.Enter("30 NEXT I");
@@ -278,7 +294,30 @@ public class BasicInterpreterTests
     {
         var interpreter = new BasicInterpreter(new BasicStatementExecutor(new SpectrumScreen()));
 
-        Assert.That(() => interpreter.Run(new BasicProgram()), Throws.Nothing);
+        var result = interpreter.Run(new BasicProgram());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsPaused, Is.False);
+            Assert.That(result.LineNumber, Is.Zero);
+            Assert.That(result.StatementNumber, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void RunReportsTheLastCompletedProgramStatement()
+    {
+        var program = new BasicProgram();
+        program.Enter("10 LET A=1: LET B=2");
+
+        var result = new BasicInterpreter(new BasicStatementExecutor(new SpectrumScreen())).Run(program);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsPaused, Is.False);
+            Assert.That(result.LineNumber, Is.EqualTo(10));
+            Assert.That(result.StatementNumber, Is.EqualTo(2));
+        });
     }
 
     [Test]
@@ -294,6 +333,23 @@ public class BasicInterpreterTests
         {
             Assert.That(exception!.Message, Is.EqualTo("BORDER NEEDS AN INTEGER FROM 0 TO 7."));
             Assert.That(exception.LineNumber, Is.EqualTo(40));
+            Assert.That(exception.StatementNumber, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void PrintReportsAnUndefinedVariableAtItsProgramLocation()
+    {
+        var program = new BasicProgram();
+        program.Enter("10 PRINT P");
+
+        var exception = Assert.Throws<BasicRuntimeException>(() =>
+            new BasicInterpreter(new BasicStatementExecutor(new SpectrumScreen())).Run(program));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(exception!.Message, Is.EqualTo("VARIABLE NOT FOUND."));
+            Assert.That(exception.LineNumber, Is.EqualTo(10));
             Assert.That(exception.StatementNumber, Is.EqualTo(1));
         });
     }
@@ -389,6 +445,7 @@ public class BasicInterpreterTests
     {
         var executor = new BasicStatementExecutor(new SpectrumScreen());
         var program = new BasicProgram();
+        program.Enter("5 LET N=0");
         program.Enter("10 FOR I=1 TO 2");
         program.Enter("20 FOR J=1 TO 3");
         program.Enter("30 LET N=N+1");
@@ -484,8 +541,12 @@ public class BasicInterpreterTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(executor.Runtime.GetVariable("B"), Is.Zero);
-            Assert.That(executor.Runtime.GetVariable("C"), Is.Zero);
+            Assert.That(
+                () => executor.Runtime.GetVariable("B"),
+                Throws.TypeOf<BasicVariableNotFoundException>().With.Message.EqualTo("Variable not found."));
+            Assert.That(
+                () => executor.Runtime.GetVariable("C"),
+                Throws.TypeOf<BasicVariableNotFoundException>().With.Message.EqualTo("Variable not found."));
         });
     }
 

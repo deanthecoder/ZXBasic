@@ -25,7 +25,7 @@ public static class BasicLineValidator
         var text = line.Trim();
         if (text.Length == 0 || !HasBalancedQuotesAndParentheses(text))
             return false;
-        if (IsRenumberCommand(text))
+        if (IsRenumberCommand(text) || text == "RESET")
             return true;
 
         var statement = text;

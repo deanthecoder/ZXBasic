@@ -14,6 +14,14 @@ namespace ZXBasic.Basic;
 
 public sealed class BasicStatementExecutor
 {
+    private readonly record struct DrawingAttributes(
+        byte Ink,
+        byte Paper,
+        bool Bright,
+        bool Flash,
+        bool Inverse,
+        bool Over);
+
     private readonly BasicExpressionEvaluator m_expressionEvaluator;
 
     public BasicRuntime Runtime { get; }
@@ -231,62 +239,7 @@ public sealed class BasicStatementExecutor
 
     private BasicStatementResult ExecutePlot(IReadOnlyList<BasicToken> tokens)
     {
-        var ink = Runtime.Ink;
-        var paper = Runtime.Paper;
-        var bright = Runtime.Bright;
-        var flash = Runtime.Flash;
-        var inverse = Runtime.Inverse;
-        var over = Runtime.Over;
-        var position = 1;
-
-        while (position < tokens.Count && tokens[position].Keyword is
-               BasicKeyword.Ink or BasicKeyword.Paper or BasicKeyword.Bright or
-               BasicKeyword.Flash or BasicKeyword.Inverse or BasicKeyword.Over)
-        {
-            var modifier = tokens[position++].Keyword!.Value;
-            var semicolon = FindTopLevel(tokens, position, ";");
-            if (semicolon < 0)
-                throw new BasicSyntaxException("A PLOT color item must end with ';'.", tokens[position - 1].Position);
-
-            var value = ToInteger(Evaluate(tokens, position, semicolon));
-            if (modifier == BasicKeyword.Bright)
-            {
-                if (value is < 0 or > 1)
-                    throw new BasicSyntaxException("BRIGHT needs 0 or 1.", tokens[position - 1].Position);
-                bright = value == 1;
-            }
-            else if (modifier is BasicKeyword.Flash or BasicKeyword.Inverse or BasicKeyword.Over)
-            {
-                if (value is < 0 or > 1)
-                {
-                    throw new BasicSyntaxException($"{modifier.ToString().ToUpperInvariant()} needs 0 or 1.", tokens[position - 1].Position);
-                }
-
-                if (modifier == BasicKeyword.Flash)
-                {
-                    flash = value == 1;
-                }
-                else if (modifier == BasicKeyword.Inverse)
-                {
-                    inverse = value == 1;
-                }
-                else
-                {
-                    over = value == 1;
-                }
-            }
-            else
-            {
-                if (value is < 0 or > 7)
-                    throw new BasicSyntaxException("A color must be from 0 to 7.", tokens[position - 1].Position);
-                if (modifier == BasicKeyword.Ink)
-                    ink = (byte)value;
-                else
-                    paper = (byte)value;
-            }
-
-            position = semicolon + 1;
-        }
+        var attributes = ParseDrawingAttributes(tokens, "PLOT", out var position);
 
         var comma = FindTopLevel(tokens, position, ",");
         if (comma < 0)
@@ -297,7 +250,15 @@ public sealed class BasicStatementExecutor
         if (x is < 0 or >= SpectrumScreen.Width || y is < 0 or >= 176)
             throw new BasicSyntaxException("PLOT coordinates are outside the BASIC drawing area.", tokens[position].Position);
 
-        Runtime.Screen.Plot(x, y, ink, paper, bright, flash, inverse, over);
+        Runtime.Screen.Plot(
+            x,
+            y,
+            attributes.Ink,
+            attributes.Paper,
+            attributes.Bright,
+            attributes.Flash,
+            attributes.Inverse,
+            attributes.Over);
         Runtime.PlotX = x;
         Runtime.PlotY = y;
         return BasicStatementResult.Continue;
@@ -305,7 +266,8 @@ public sealed class BasicStatementExecutor
 
     private BasicStatementResult ExecuteDraw(IReadOnlyList<BasicToken> tokens)
     {
-        var values = EvaluateArguments(tokens, 1, tokens.Count);
+        var attributes = ParseDrawingAttributes(tokens, "DRAW", out var position);
+        var values = EvaluateArguments(tokens, position, tokens.Count);
         if (values.Count is < 2 or > 3)
             throw new BasicSyntaxException("DRAW needs x and y offsets and an optional angle.", ArgumentPosition(tokens));
 
@@ -316,18 +278,25 @@ public sealed class BasicStatementExecutor
 
         if (values.Count == 2 || Math.Abs(values[2]) < 1e-10)
         {
-            DrawLine(Runtime.PlotX, Runtime.PlotY, x, y);
+            DrawLine(Runtime.PlotX, Runtime.PlotY, x, y, attributes);
         }
         else
         {
-            DrawArc(Runtime.PlotX, Runtime.PlotY, x, y, values[2], ArgumentPosition(tokens));
+            DrawArc(Runtime.PlotX, Runtime.PlotY, x, y, values[2], ArgumentPosition(tokens), attributes);
         }
         Runtime.PlotX = x;
         Runtime.PlotY = y;
         return BasicStatementResult.Continue;
     }
 
-    private void DrawArc(int startX, int startY, int endX, int endY, double angle, int position)
+    private void DrawArc(
+        int startX,
+        int startY,
+        int endX,
+        int endY,
+        double angle,
+        int position,
+        DrawingAttributes attributes)
     {
         var deltaX = endX - startX;
         var deltaY = endY - startY;
@@ -335,7 +304,7 @@ public sealed class BasicStatementExecutor
         var tangent = Math.Tan(angle / 2);
         if (chord == 0 || Math.Abs(tangent) < 1e-10)
         {
-            DrawLine(startX, startY, endX, endY);
+            DrawLine(startX, startY, endX, endY, attributes);
             return;
         }
 
@@ -362,28 +331,29 @@ public sealed class BasicStatementExecutor
         points[^1] = (endX, endY);
         for (var segment = 1; segment < points.Length; segment++)
         {
-            DrawLine(points[segment - 1].X, points[segment - 1].Y, points[segment].X, points[segment].Y);
+            DrawLine(points[segment - 1].X, points[segment - 1].Y, points[segment].X, points[segment].Y, attributes);
         }
     }
 
-    private void DrawLine(int startX, int startY, int endX, int endY)
+    private void DrawLine(int startX, int startY, int endX, int endY, DrawingAttributes attributes)
     {
         Runtime.Screen.DrawLine(
             startX,
             startY,
             endX,
             endY,
-            Runtime.Ink,
-            Runtime.Paper,
-            Runtime.Bright,
-            Runtime.Flash,
-            Runtime.Inverse,
-            Runtime.Over);
+            attributes.Ink,
+            attributes.Paper,
+            attributes.Bright,
+            attributes.Flash,
+            attributes.Inverse,
+            attributes.Over);
     }
 
     private BasicStatementResult ExecuteCircle(IReadOnlyList<BasicToken> tokens)
     {
-        var values = EvaluateArguments(tokens, 1, tokens.Count);
+        var attributes = ParseDrawingAttributes(tokens, "CIRCLE", out var position);
+        var values = EvaluateArguments(tokens, position, tokens.Count);
         if (values.Count != 3)
             throw new BasicSyntaxException("CIRCLE needs x, y and radius.", ArgumentPosition(tokens));
 
@@ -398,15 +368,86 @@ public sealed class BasicStatementExecutor
             x,
             y,
             radius,
+            attributes.Ink,
+            attributes.Paper,
+            attributes.Bright,
+            attributes.Flash,
+            attributes.Inverse,
+            attributes.Over);
+        Runtime.PlotX = x + radius;
+        Runtime.PlotY = y;
+        return BasicStatementResult.Continue;
+    }
+
+    private DrawingAttributes ParseDrawingAttributes(
+        IReadOnlyList<BasicToken> tokens,
+        string command,
+        out int position)
+    {
+        var attributes = new DrawingAttributes(
             Runtime.Ink,
             Runtime.Paper,
             Runtime.Bright,
             Runtime.Flash,
             Runtime.Inverse,
             Runtime.Over);
-        Runtime.PlotX = x + radius;
-        Runtime.PlotY = y;
-        return BasicStatementResult.Continue;
+        position = 1;
+
+        while (position < tokens.Count && tokens[position].Keyword is
+               BasicKeyword.Ink or BasicKeyword.Paper or BasicKeyword.Bright or
+               BasicKeyword.Flash or BasicKeyword.Inverse or BasicKeyword.Over)
+        {
+            var modifierPosition = tokens[position].Position;
+            var modifier = tokens[position++].Keyword!.Value;
+            var semicolon = FindTopLevel(tokens, position, ";");
+            if (semicolon < 0)
+            {
+                throw new BasicSyntaxException(
+                    $"A {command} color item must end with ';'.",
+                    modifierPosition);
+            }
+
+            var value = ToInteger(Evaluate(tokens, position, semicolon));
+            attributes = ApplyDrawingAttribute(attributes, modifier, value, modifierPosition);
+            position = semicolon + 1;
+        }
+
+        return attributes;
+    }
+
+    private static DrawingAttributes ApplyDrawingAttribute(
+        DrawingAttributes attributes,
+        BasicKeyword modifier,
+        int value,
+        int position)
+    {
+        if (modifier is BasicKeyword.Ink or BasicKeyword.Paper)
+        {
+            if (value is < 0 or > 7)
+            {
+                throw new BasicSyntaxException("A color must be from 0 to 7.", position);
+            }
+
+            return modifier == BasicKeyword.Ink
+                ? attributes with { Ink = (byte)value }
+                : attributes with { Paper = (byte)value };
+        }
+
+        if (value is < 0 or > 1)
+        {
+            throw new BasicSyntaxException(
+                $"{modifier.ToString().ToUpperInvariant()} needs 0 or 1.",
+                position);
+        }
+
+        return modifier switch
+        {
+            BasicKeyword.Bright => attributes with { Bright = value == 1 },
+            BasicKeyword.Flash => attributes with { Flash = value == 1 },
+            BasicKeyword.Inverse => attributes with { Inverse = value == 1 },
+            BasicKeyword.Over => attributes with { Over = value == 1 },
+            _ => attributes
+        };
     }
 
     private BasicStatementResult ExecutePrint(IReadOnlyList<BasicToken> tokens)
@@ -710,6 +751,8 @@ public sealed class BasicStatementExecutor
         }
 
         Runtime.ClearVariables();
+        Runtime.RestoreData();
+        Runtime.ClearScreen();
         return BasicStatementResult.Continue;
     }
 

@@ -83,7 +83,12 @@ public sealed class BasicRuntime
             return OldMouseY;
         if (m_localScopes.Count > 0 && m_localScopes.Peek().TryGetValue(name, out var localValue))
             return localValue;
-        return m_variables.GetValueOrDefault(name);
+        if (m_variables.TryGetValue(name, out var value))
+        {
+            return value;
+        }
+
+        throw new BasicVariableNotFoundException();
     }
 
     public void SetMouseState(int x, int y, int buttons)
@@ -112,7 +117,12 @@ public sealed class BasicRuntime
         {
             return array.Get([]);
         }
-        return m_stringVariables.GetValueOrDefault(name, string.Empty);
+        if (m_stringVariables.TryGetValue(name, out var value))
+        {
+            return value;
+        }
+
+        throw new BasicVariableNotFoundException();
     }
 
     public void SetStringVariable(string name, string value)
@@ -322,9 +332,29 @@ public sealed class BasicRuntime
         Over = false;
         PrintColumn = 0;
         PrintRow = 0;
+        ResetPlotPosition();
+        Screen.Clear(Ink, Paper, Bright);
+    }
+
+    public void ResetMachine()
+    {
+        ResetForRun();
+        Screen.BorderColor = 7;
+    }
+
+    public void ResetForNew()
+    {
+        ClearVariables();
+        m_functions.Clear();
+        m_data.Clear();
+        m_dataPosition = 0;
+        ResetPlotPosition();
+    }
+
+    public void ResetPlotPosition()
+    {
         PlotX = 0;
         PlotY = 0;
-        Screen.Clear(Ink, Paper, Bright);
     }
 
     public void ClearScreen()
@@ -332,6 +362,7 @@ public sealed class BasicRuntime
         Screen.Clear(Ink, Paper, Bright);
         PrintColumn = 0;
         PrintRow = 0;
+        ResetPlotPosition();
     }
 
     public void ClearVariables()

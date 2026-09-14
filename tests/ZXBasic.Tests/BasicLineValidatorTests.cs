@@ -26,6 +26,7 @@ public class BasicLineValidatorTests
     [TestCase("120")]
     [TestCase("RENUM")]
     [TestCase("RENUMBER 100,5")]
+    [TestCase("RESET")]
     [TestCase("BORDER 3:PAPER 2:CLS")]
     public void AcceptsInitialLanguageForms(string line)
     {
@@ -38,6 +39,7 @@ public class BasicLineValidatorTests
     [TestCase("10 RANDOMIZE USR 32768")]
     [TestCase("10 OUT 254, 0")]
     [TestCase("10 SAVE \"PROGRAM\"")]
+    [TestCase("10 RESET")]
     [TestCase("RENUM 10,0,5")]
     public void RejectsInvalidOrUnsupportedForms(string line)
     {

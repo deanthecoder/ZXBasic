@@ -567,6 +567,42 @@ public class BasicStatementExecutorTests
     }
 
     [Test]
+    public void DrawAcceptsTemporaryColorItems()
+    {
+        var screen = new SpectrumScreen();
+        var executor = new BasicStatementExecutor(screen);
+
+        executor.ExecuteSequence(BasicTokenizer.Tokenize("PLOT PAPER 0;7,40:DRAW PAPER 2;INK 6;BRIGHT 1;FLASH 1;241,0"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(screen.GetAttribute(16, 31), Is.EqualTo(0xD6));
+            Assert.That(executor.Runtime.Ink, Is.Zero);
+            Assert.That(executor.Runtime.Paper, Is.EqualTo(7));
+            Assert.That(executor.Runtime.Bright, Is.False);
+            Assert.That(executor.Runtime.Flash, Is.False);
+        });
+    }
+
+    [Test]
+    public void CircleAcceptsTemporaryColorItems()
+    {
+        var screen = new SpectrumScreen();
+        var executor = new BasicStatementExecutor(screen);
+
+        executor.TryExecute(BasicTokenizer.Tokenize("CIRCLE PAPER 4;INK 2;BRIGHT 1;FLASH 1;30,30,5"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(screen.GetAttribute(18, 4), Is.EqualTo(0xE2));
+            Assert.That(executor.Runtime.Ink, Is.Zero);
+            Assert.That(executor.Runtime.Paper, Is.EqualTo(7));
+            Assert.That(executor.Runtime.Bright, Is.False);
+            Assert.That(executor.Runtime.Flash, Is.False);
+        });
+    }
+
+    [Test]
     public void DrawSupportsACircularArc()
     {
         var executor = new BasicStatementExecutor(new SpectrumScreen());
@@ -615,14 +651,81 @@ public class BasicStatementExecutorTests
         executor.TryExecute(BasicTokenizer.Tokenize("DIM B(2)"));
         executor.TryExecute(BasicTokenizer.Tokenize("LET B(1)=7"));
         executor.TryExecute(BasicTokenizer.Tokenize("POKE 32768,99"));
+        executor.TryExecute(BasicTokenizer.Tokenize("PLOT 20,30"));
+        executor.Runtime.SetData([
+            (10, BasicDataValue.FromNumber(1)),
+            (20, BasicDataValue.FromNumber(2))
+        ]);
+        Assert.That(executor.Runtime.ReadData(), Is.EqualTo(1));
 
         executor.TryExecute(BasicTokenizer.Tokenize("CLEAR 65535"));
 
         Assert.Multiple(() =>
         {
-            Assert.That(executor.Runtime.GetVariable("A"), Is.Zero);
+            Assert.That(
+                () => executor.Runtime.GetVariable("A"),
+                Throws.TypeOf<BasicVariableNotFoundException>().With.Message.EqualTo("Variable not found."));
             Assert.That(() => executor.Runtime.GetArrayValue("B", [1]), Throws.TypeOf<BasicSyntaxException>());
             Assert.That(executor.Runtime.Memory.Peek(32768), Is.EqualTo(99));
+            Assert.That(executor.Runtime.PlotX, Is.Zero);
+            Assert.That(executor.Runtime.PlotY, Is.Zero);
+            Assert.That(executor.Runtime.Screen.IsPixelSet(20, 30), Is.False);
+            Assert.That(executor.Runtime.ReadData(), Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void ResetForNewClearsVariablesAndPlotPositionButPreservesPaper()
+    {
+        var executor = new BasicStatementExecutor(new SpectrumScreen());
+        executor.TryExecute(BasicTokenizer.Tokenize("LET A=42"));
+        executor.TryExecute(BasicTokenizer.Tokenize("PAPER 3"));
+        executor.TryExecute(BasicTokenizer.Tokenize("PLOT 20,30"));
+
+        executor.Runtime.ResetForNew();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                () => executor.Runtime.GetVariable("A"),
+                Throws.TypeOf<BasicVariableNotFoundException>().With.Message.EqualTo("Variable not found."));
+            Assert.That(executor.Runtime.Paper, Is.EqualTo(3));
+            Assert.That(executor.Runtime.PlotX, Is.Zero);
+            Assert.That(executor.Runtime.PlotY, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void ClearScreenResetsThePlotPosition()
+    {
+        var executor = new BasicStatementExecutor(new SpectrumScreen());
+        executor.TryExecute(BasicTokenizer.Tokenize("PLOT 20,30"));
+
+        executor.TryExecute(BasicTokenizer.Tokenize("CLS"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(executor.Runtime.PlotX, Is.Zero);
+            Assert.That(executor.Runtime.PlotY, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void MachineResetRestoresTheDefaultColorsAndPlotPosition()
+    {
+        var screen = new SpectrumScreen { BorderColor = 2 };
+        var executor = new BasicStatementExecutor(screen);
+        executor.TryExecute(BasicTokenizer.Tokenize("PAPER 3"));
+        executor.TryExecute(BasicTokenizer.Tokenize("PLOT 20,30"));
+
+        executor.Runtime.ResetMachine();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(screen.BorderColor, Is.EqualTo(7));
+            Assert.That(executor.Runtime.Paper, Is.EqualTo(7));
+            Assert.That(executor.Runtime.PlotX, Is.Zero);
+            Assert.That(executor.Runtime.PlotY, Is.Zero);
         });
     }
 }

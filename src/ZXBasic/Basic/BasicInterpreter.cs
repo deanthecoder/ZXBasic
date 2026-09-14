@@ -80,6 +80,8 @@ public sealed class BasicInterpreter
             programCounter = targetPosition.Value;
         }
         var executedStatements = 0;
+        var lastLineNumber = 0;
+        var lastStatementNumber = 1;
         var lastProgressAt = Environment.TickCount64;
         var hasReportedProgress = false;
         var executionPacer = new BasicExecutionPacer(ExecutionSpeed, 0, Environment.TickCount64);
@@ -99,18 +101,22 @@ public sealed class BasicInterpreter
                 if (instruction.Tokens[0].Keyword == BasicKeyword.Input)
                 {
                     await ExecuteInputAsync(instruction, inputProvider, cancellationToken);
+                    lastLineNumber = instruction.LineNumber;
+                    lastStatementNumber = instruction.StatementNumber;
                     programCounter++;
                     continue;
                 }
 
                 var result = ExecuteInstruction(instruction, instructions, linePositions, loops, calls, ref programCounter);
+                lastLineNumber = instruction.LineNumber;
+                lastStatementNumber = instruction.StatementNumber;
                 if (result.Flow == BasicStatementFlow.Stop)
-                    return BasicRunResult.Complete;
+                    return BasicRunResult.CompleteAt(lastLineNumber, lastStatementNumber);
                 if (result.Flow == BasicStatementFlow.Pause)
                 {
                     if (pauseProvider == null)
                     {
-                        return BasicRunResult.Paused;
+                        return BasicRunResult.PausedAt(lastLineNumber, lastStatementNumber);
                     }
 
                     await pauseProvider(result.PauseFrames, cancellationToken);
@@ -147,7 +153,7 @@ public sealed class BasicInterpreter
             }
         }
 
-        return BasicRunResult.Complete;
+        return BasicRunResult.CompleteAt(lastLineNumber, lastStatementNumber);
     }
 
     private async Task ThrottleAsync(
@@ -313,6 +319,12 @@ public sealed class BasicInterpreter
             case BasicKeyword.DefFn:
                 programCounter++;
                 return BasicStatementResult.Continue;
+            case BasicKeyword.Clear:
+                var clearResult = m_statementExecutor.Execute(tokens);
+                loops.Clear();
+                calls.Clear();
+                programCounter++;
+                return clearResult;
         }
 
         var result = m_statementExecutor.Execute(tokens);

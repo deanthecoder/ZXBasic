@@ -10,8 +10,21 @@
 
 namespace ZXBasic.Basic;
 
-public readonly record struct BasicRunResult(bool IsPaused)
+public readonly record struct BasicRunResult(
+    bool IsPaused,
+    int LineNumber = 0,
+    int StatementNumber = 1)
 {
     public static BasicRunResult Complete { get; } = new(false);
     public static BasicRunResult Paused { get; } = new(true);
+
+    public static BasicRunResult CompleteAt(int lineNumber, int statementNumber)
+    {
+        return new BasicRunResult(false, lineNumber, statementNumber);
+    }
+
+    public static BasicRunResult PausedAt(int lineNumber, int statementNumber)
+    {
+        return new BasicRunResult(true, lineNumber, statementNumber);
+    }
 }

@@ -56,6 +56,28 @@ public class BasicExpressionEvaluatorTests
     }
 
     [Test]
+    public void UndefinedNumericVariableReportsVariableNotFound()
+    {
+        var evaluator = new BasicExpressionEvaluator(new BasicRuntime(new SpectrumScreen()));
+
+        var exception = Assert.Throws<BasicVariableNotFoundException>(() =>
+            evaluator.Evaluate(BasicTokenizer.Tokenize("P")));
+
+        Assert.That(exception!.Message, Is.EqualTo("Variable not found."));
+    }
+
+    [Test]
+    public void UndefinedStringVariableReportsVariableNotFound()
+    {
+        var evaluator = new BasicExpressionEvaluator(new BasicRuntime(new SpectrumScreen()));
+
+        var exception = Assert.Throws<BasicVariableNotFoundException>(() =>
+            evaluator.EvaluateString(BasicTokenizer.Tokenize("P$")));
+
+        Assert.That(exception!.Message, Is.EqualTo("Variable not found."));
+    }
+
+    [Test]
     public void ReadsLiveMouseVariables()
     {
         var runtime = new BasicRuntime(new SpectrumScreen());
