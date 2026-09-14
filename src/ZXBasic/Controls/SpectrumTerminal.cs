@@ -57,6 +57,7 @@ public sealed class SpectrumTerminal : Control
     private TaskCompletionSource<string>? m_inputCompletion;
     private TaskCompletionSource? m_keyCompletion;
     private string m_pendingInkey = string.Empty;
+    private Key? m_pendingInkeyKey;
     private readonly JoystickInputMonitor m_joystickInput = new();
 
     public event EventHandler? FrameRefreshed;
@@ -155,6 +156,8 @@ public sealed class SpectrumTerminal : Control
         m_preserveProgramScreen = false;
         m_isPaused = false;
         m_input = string.Empty;
+        m_pendingInkey = string.Empty;
+        m_pendingInkeyKey = null;
         m_cursor = 0;
         m_selectedLineNumber = null;
         SetOutputLines([]);
@@ -169,7 +172,7 @@ public sealed class SpectrumTerminal : Control
         {
             Runtime =
             {
-                InkeyProvider = ConsumeInkey,
+                InkeyProvider = ReadInkey,
                 JoystickProvider = () => m_joystickInput.State
             }
         };
@@ -448,6 +451,10 @@ public sealed class SpectrumTerminal : Control
                 CompleteInput();
                 e.Handled = true;
             }
+            else if (!m_isAwaitingInput && !m_isWaitingForKey)
+            {
+                m_pendingInkeyKey = e.Key;
+            }
             if (!m_isAwaitingInput || e.Handled)
             {
                 return;
@@ -530,6 +537,18 @@ public sealed class SpectrumTerminal : Control
 
         ShowCursor();
         e.Handled = true;
+    }
+
+    protected override void OnKeyUp(KeyEventArgs e)
+    {
+        base.OnKeyUp(e);
+        if (m_pendingInkeyKey != e.Key)
+        {
+            return;
+        }
+
+        m_pendingInkey = string.Empty;
+        m_pendingInkeyKey = null;
     }
 
     private async void PasteClipboard()
@@ -720,6 +739,8 @@ public sealed class SpectrumTerminal : Control
                 m_isRunning = false;
                 m_isAwaitingInput = false;
                 m_isWaitingForKey = false;
+                m_pendingInkey = string.Empty;
+                m_pendingInkeyKey = null;
                 cancellation.Dispose();
                 completion.TrySetResult();
                 if (ReferenceEquals(m_runCompletion, completion))
@@ -886,11 +907,9 @@ public sealed class SpectrumTerminal : Control
         }
     }
 
-    private string ConsumeInkey()
+    private string ReadInkey()
     {
-        var key = m_pendingInkey;
-        m_pendingInkey = string.Empty;
-        return key;
+        return m_pendingInkey;
     }
 
     public void DisposeJoystickInput()
