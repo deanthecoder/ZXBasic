@@ -28,6 +28,7 @@ public class BasicLineValidatorTests
     [TestCase("RENUMBER 100,5")]
     [TestCase("RESET")]
     [TestCase("BORDER 3:PAPER 2:CLS")]
+    [TestCase("850 RESTORE: GO TO 5")]
     public void AcceptsInitialLanguageForms(string line)
     {
         Assert.That(BasicLineValidator.IsValid(line), Is.True);

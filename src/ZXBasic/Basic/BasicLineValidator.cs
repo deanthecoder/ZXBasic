@@ -58,7 +58,8 @@ public static class BasicLineValidator
 
         return StatementKeywords.Any(keyword =>
             statement.Equals(keyword, StringComparison.Ordinal) ||
-            statement.StartsWith(keyword + " ", StringComparison.Ordinal));
+            statement.StartsWith(keyword + " ", StringComparison.Ordinal) ||
+            statement.StartsWith(keyword + ":", StringComparison.Ordinal));
     }
 
     private static bool ContainsUnsupportedUsr(IReadOnlyList<BasicToken> tokens)

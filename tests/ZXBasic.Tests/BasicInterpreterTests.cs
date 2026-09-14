@@ -486,6 +486,25 @@ public class BasicInterpreterTests
     }
 
     [Test]
+    public void RestoreWithoutALineNumberRestartsDataFromTheBeginning()
+    {
+        var executor = new BasicStatementExecutor(new SpectrumScreen());
+        var program = new BasicProgram();
+        program.Enter("10 DATA 2,4");
+        program.Enter("20 READ A");
+        program.Enter("30 RESTORE");
+        program.Enter("40 READ B");
+
+        new BasicInterpreter(executor).Run(program);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(executor.Runtime.GetVariable("A"), Is.EqualTo(2));
+            Assert.That(executor.Runtime.GetVariable("B"), Is.EqualTo(2));
+        });
+    }
+
+    [Test]
     public void ReadReportsWhenDataIsExhausted()
     {
         var program = new BasicProgram();
