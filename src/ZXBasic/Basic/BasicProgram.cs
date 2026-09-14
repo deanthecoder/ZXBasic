@@ -194,10 +194,26 @@ public sealed class BasicProgram
 
     public IReadOnlyList<string> GetAutomaticListing(int currentLineNumber, int columns, int rows)
     {
+        var (entries, start, end) = GetAutomaticListingLayout(currentLineNumber, columns, rows);
+        return entries.Length == 0
+            ? []
+            : entries[start..(end + 1)].Select(entry => entry.Text).ToArray();
+    }
+
+    public int GetAutomaticListingLineOffset(int currentLineNumber, int columns, int rows)
+    {
+        return GetAutomaticListingLayout(currentLineNumber, columns, rows).Start;
+    }
+
+    private ((string Text, int RequiredRows)[] Entries, int Start, int End) GetAutomaticListingLayout(
+        int currentLineNumber,
+        int columns,
+        int rows)
+    {
         var lines = m_lines.Values.ToArray();
         if (lines.Length == 0)
         {
-            return [];
+            return ([], 0, -1);
         }
 
         var entries = lines.Select(line =>
@@ -210,7 +226,7 @@ public sealed class BasicProgram
 
         if (entries.Sum(entry => entry.RequiredRows) <= rows)
         {
-            return entries.Select(entry => entry.Text).ToArray();
+            return (entries, 0, entries.Length - 1);
         }
 
         var anchor = Array.FindLastIndex(lines, line => line.Number <= currentLineNumber);
@@ -232,6 +248,6 @@ public sealed class BasicProgram
             usedRows += entries[--start].RequiredRows;
         }
 
-        return entries[start..(end + 1)].Select(entry => entry.Text).ToArray();
+        return (entries, start, end);
     }
 }

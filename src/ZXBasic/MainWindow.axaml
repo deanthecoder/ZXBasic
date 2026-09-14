@@ -3,8 +3,8 @@
         xmlns:controls="using:ZXBasic.Controls"
         xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         x:Class="ZXBasic.MainWindow"
-        Width="960"
-        Height="720"
+        Width="1080"
+        Height="768"
         MinWidth="640"
         MinHeight="480"
         Background="Black"
@@ -69,12 +69,14 @@
                 </Image.Effect>
             </Image>
 
-            <Viewbox Stretch="Uniform">
+            <Viewbox Stretch="Uniform"
+                     RenderOptions.BitmapInterpolationMode="HighQuality">
                 <Panel Width="320" Height="240">
                     <controls:SpectrumTerminal x:Name="Terminal" />
                     <Image x:Name="CrtOverlay"
                            Source="{Binding CrtFrame, ElementName=Terminal}"
                            Stretch="Fill"
+                           RenderOptions.BitmapInterpolationMode="HighQuality"
                            IsHitTestVisible="False"
                            Opacity="0.4">
                     <Image.Effect>

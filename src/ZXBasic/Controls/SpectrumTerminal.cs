@@ -43,7 +43,7 @@ public sealed class SpectrumTerminal : Control
     private string m_input = string.Empty;
     private string m_inputPrompt = string.Empty;
     private int m_cursor;
-    private bool m_cursorVisible = true;
+    private bool m_cursorInverse;
     private bool m_flashPhase;
     private bool m_hasError;
     private bool m_hasStarted;
@@ -75,6 +75,7 @@ public sealed class SpectrumTerminal : Control
             }
 
             m_isCrtEnabled = value;
+            UpdateBitmapInterpolationMode();
             RefreshFrame();
         }
     }
@@ -148,7 +149,7 @@ public sealed class SpectrumTerminal : Control
     public void ResetMachine()
     {
         m_program.Clear();
-        m_statementExecutor.Runtime.ResetForRun();
+        m_statementExecutor.Runtime.ResetMachine();
         m_hasStarted = false;
         m_hasError = false;
         m_preserveProgramScreen = false;
@@ -163,7 +164,7 @@ public sealed class SpectrumTerminal : Control
     public SpectrumTerminal()
     {
         Focusable = true;
-        RenderOptions.SetBitmapInterpolationMode(this, BitmapInterpolationMode.None);
+        UpdateBitmapInterpolationMode();
         m_statementExecutor = new BasicStatementExecutor(m_screen, m_font);
         m_statementExecutor.Runtime.InkeyProvider = ConsumeInkey;
         m_statementExecutor.Runtime.JoystickProvider = () => m_joystickInput.State;
@@ -188,7 +189,7 @@ public sealed class SpectrumTerminal : Control
         m_cursorTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(320) };
         m_cursorTimer.Tick += (_, _) =>
         {
-            m_cursorVisible = !m_cursorVisible;
+            m_cursorInverse = !m_cursorInverse;
             m_flashPhase = !m_flashPhase;
             RefreshFrame();
         };
@@ -199,6 +200,13 @@ public sealed class SpectrumTerminal : Control
             Focus();
             RefreshFrame();
         };
+    }
+
+    private void UpdateBitmapInterpolationMode()
+    {
+        RenderOptions.SetBitmapInterpolationMode(
+            this,
+            m_isCrtEnabled ? BitmapInterpolationMode.HighQuality : BitmapInterpolationMode.None);
     }
 
     public override void Render(DrawingContext context)
@@ -399,7 +407,6 @@ public sealed class SpectrumTerminal : Control
         {
             m_isPaused = false;
             m_preserveProgramScreen = false;
-            SetOutputLines([]);
             ShowCursor();
             e.Handled = true;
             return;
@@ -435,11 +442,24 @@ public sealed class SpectrumTerminal : Control
             }
         }
 
+        if (!m_hasStarted && e.Key is Key.Enter or Key.Escape)
+        {
+            m_hasStarted = true;
+            m_input = string.Empty;
+            m_cursor = 0;
+            m_hasError = false;
+            ShowCursor();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.Escape)
         {
             m_input = string.Empty;
             m_cursor = 0;
             m_hasError = false;
+            m_isPaused = false;
+            m_preserveProgramScreen = false;
             ShowCursor();
             e.Handled = true;
             return;
@@ -451,7 +471,6 @@ public sealed class SpectrumTerminal : Control
             {
                 m_isPaused = false;
                 m_preserveProgramScreen = false;
-                SetOutputLines([]);
             }
 
             PasteClipboard();
@@ -463,7 +482,6 @@ public sealed class SpectrumTerminal : Control
         {
             m_isPaused = false;
             m_preserveProgramScreen = false;
-            SetOutputLines([]);
             ShowCursor();
             e.Handled = true;
             return;
@@ -546,10 +564,7 @@ public sealed class SpectrumTerminal : Control
             m_hasStarted = true;
             m_isPaused = false;
             m_preserveProgramScreen = false;
-            SetOutputLines(m_program.GetAutomaticListing(
-                result.LastLineNumber.Value,
-                SpectrumScreen.Columns,
-                SpectrumScreen.Rows - 2));
+            ShowAutomaticListing(result.LastLineNumber.Value);
         }
         catch (BasicSyntaxException)
         {
@@ -591,7 +606,6 @@ public sealed class SpectrumTerminal : Control
         {
             m_preserveProgramScreen = false;
             m_isPaused = false;
-            SetOutputLines(m_program.GetListing());
             m_hasError = false;
             ShowCursor();
             return;
@@ -613,10 +627,7 @@ public sealed class SpectrumTerminal : Control
             var digitCount = input.TakeWhile(char.IsDigit).Count();
             var currentLineNumber = int.Parse(input[..digitCount]);
             m_selectedLineNumber = currentLineNumber;
-            SetOutputLines(m_program.GetAutomaticListing(
-                currentLineNumber,
-                SpectrumScreen.Columns,
-                SpectrumScreen.Rows - 2));
+            ShowAutomaticListing(currentLineNumber);
         }
         else if (input == "LIST" || input.StartsWith("LIST ", StringComparison.Ordinal))
         {
@@ -629,8 +640,13 @@ public sealed class SpectrumTerminal : Control
             m_preserveProgramScreen = false;
             m_isPaused = false;
             m_program.Clear();
+            m_statementExecutor.Runtime.ResetForNew();
             m_selectedLineNumber = null;
             SetOutputLines([]);
+        }
+        else if (input == "RESET")
+        {
+            ResetMachine();
         }
         else if (input.StartsWith("RENUM", StringComparison.Ordinal))
         {
@@ -675,13 +691,16 @@ public sealed class SpectrumTerminal : Control
                     ReadInputAsync,
                     WaitForPauseAsync);
                 m_isPaused = result.IsPaused;
-                SetOutputLines([]);
+                if (!result.IsPaused)
+                {
+                    WriteReport($"0 OK, {result.LineNumber}:{result.StatementNumber}");
+                    m_isPaused = true;
+                }
             }
             catch (BasicRuntimeException exception)
             {
                 m_isPaused = false;
                 WriteRuntimeReport(exception);
-                SetOutputLines([]);
             }
             finally
             {
@@ -703,11 +722,29 @@ public sealed class SpectrumTerminal : Control
         {
             try
             {
+                if (!m_preserveProgramScreen)
+                {
+                    m_statementExecutor.Runtime.ClearScreen();
+                }
+
                 var tokens = BasicTokenizer.Tokenize(input);
                 var result = m_statementExecutor.ExecuteSequence(tokens);
                 m_preserveProgramScreen = result.Handled;
-                m_isPaused = result.Flow == BasicStatementFlow.Pause;
-                SetOutputLines(result.Handled ? [] : ["NOT IMPLEMENTED"]);
+                m_isPaused = result.Handled;
+                if (result.Handled)
+                {
+                    WriteReport("0 OK, 0:1");
+                }
+                else
+                {
+                    SetOutputLines(["NOT IMPLEMENTED"]);
+                }
+            }
+            catch (BasicVariableNotFoundException exception)
+            {
+                m_preserveProgramScreen = true;
+                m_isPaused = true;
+                WriteReport($"{exception.Message.ToUpperInvariant()} IN 0:1");
             }
             catch (BasicSyntaxException)
             {
@@ -725,7 +762,7 @@ public sealed class SpectrumTerminal : Control
 
     private void ShowCursor()
     {
-        m_cursorVisible = true;
+        m_cursorInverse = false;
         m_cursorTimer.Stop();
         m_cursorTimer.Start();
         RefreshFrame();
@@ -764,10 +801,17 @@ public sealed class SpectrumTerminal : Control
 
     private void WriteRuntimeReport(BasicRuntimeException exception)
     {
-        var runtime = m_statementExecutor.Runtime;
-        runtime.NewLine();
-        runtime.Write($"{exception.Message} IN {exception.LineNumber}:{exception.StatementNumber}");
-        runtime.NewLine();
+        WriteReport($"{exception.Message} IN {exception.LineNumber}:{exception.StatementNumber}");
+        m_isPaused = true;
+    }
+
+    private void WriteReport(string report)
+    {
+        var paper = m_screen.BorderColor;
+        var ink = paper < 4 ? (byte)7 : (byte)0;
+        m_screen.ClearTextRow(SpectrumScreen.Rows - 2, paper);
+        m_screen.ClearTextRow(SpectrumScreen.Rows - 1, paper);
+        m_screen.DrawText(0, SpectrumScreen.Rows - 1, report, m_font, ink, paper);
     }
 
     private async Task<string> ReadInputAsync(string prompt, CancellationToken cancellationToken)
@@ -903,6 +947,16 @@ public sealed class SpectrumTerminal : Control
         m_scrollWheelRemainder = 0;
     }
 
+    private void ShowAutomaticListing(int currentLineNumber)
+    {
+        var lineOffset = m_program.GetAutomaticListingLineOffset(
+            currentLineNumber,
+            SpectrumScreen.Columns,
+            SpectrumScreen.Rows - 2);
+        SetOutputLines(m_program.GetListing());
+        m_outputLineOffset = lineOffset;
+    }
+
     private void ShowLoadedProgram()
     {
         m_hasStarted = true;
@@ -987,12 +1041,15 @@ public sealed class SpectrumTerminal : Control
             visibleInput = visibleInput[..editorCharacters];
 
         screen.DrawText(0, SpectrumScreen.Rows - 1, visibleInput, m_font, ink, paper);
-        if (!m_cursorVisible)
-            return;
-
         var cursorPosition = editorCursor - viewportStart;
         var cursorCharacter = m_hasError ? 'E' : GetCursorCharacter();
-        screen.DrawGlyph(cursorPosition, SpectrumScreen.Rows - 1, m_font[cursorCharacter], ink, paper);
+        screen.DrawGlyph(
+            cursorPosition,
+            SpectrumScreen.Rows - 1,
+            m_font[cursorCharacter],
+            ink,
+            paper,
+            inverse: m_cursorInverse);
     }
 
     private char GetCursorCharacter()

@@ -198,6 +198,24 @@ public class BasicProgramTests
     }
 
     [Test]
+    public void AutomaticListingReportsItsOffsetInTheFullListing()
+    {
+        var program = new BasicProgram();
+        for (var lineNumber = 10; lineNumber <= 300; lineNumber += 10)
+        {
+            program.Enter($"{lineNumber} REM LINE {lineNumber}");
+        }
+
+        var offset = program.GetAutomaticListingLineOffset(300, columns: 32, rows: 3);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(offset, Is.EqualTo(27));
+            Assert.That(program.GetListing(), Has.Count.EqualTo(30));
+        });
+    }
+
+    [Test]
     public void AutomaticListingAfterDeletionEndsAtThePreviousLine()
     {
         var program = new BasicProgram();
