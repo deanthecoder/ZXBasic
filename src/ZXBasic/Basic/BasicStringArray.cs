@@ -23,7 +23,7 @@ public sealed class BasicStringArray
         var sizes = dimensions.ToArray();
         if (sizes.Length == 0 || sizes.Any(size => size < 1))
         {
-            throw new BasicSyntaxException("String array dimensions must be positive.", 0);
+            throw new BasicSyntaxException("Bad array dimensions", 0);
         }
 
         Width = sizes[^1];
@@ -48,7 +48,7 @@ public sealed class BasicStringArray
     {
         if (indices.Count != m_dimensions.Length)
         {
-            throw new BasicSyntaxException("Wrong number of string array indices.", 0);
+            throw new BasicSyntaxException("Wrong index count", 0);
         }
 
         var offset = 0;
@@ -56,7 +56,7 @@ public sealed class BasicStringArray
         {
             if (indices[i] < 1 || indices[i] > m_dimensions[i])
             {
-                throw new BasicSyntaxException("String array index out of range.", 0);
+                throw new BasicSyntaxException("Index out of range", 0);
             }
             offset = checked(offset * m_dimensions[i] + indices[i] - 1);
         }

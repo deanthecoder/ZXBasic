@@ -150,7 +150,7 @@ public static class BasicTokenizer
             position++;
 
         if (position == source.Length)
-            throw new BasicSyntaxException("Unterminated string.", start);
+            throw new BasicSyntaxException("Unterminated string", start);
 
         position++;
         return new BasicToken(BasicTokenKind.String, source[start..position], start);
@@ -163,7 +163,7 @@ public static class BasicTokenizer
         while (position < source.Length && (char.IsDigit(source[position]) || source[position] == '.'))
         {
             if (source[position] == '.' && hasDecimalPoint)
-                throw new BasicSyntaxException("A number can only contain one decimal point.", position);
+                throw new BasicSyntaxException("Invalid decimal", position);
 
             hasDecimalPoint |= source[position] == '.';
             position++;
@@ -179,7 +179,7 @@ public static class BasicTokenizer
             while (position < source.Length && char.IsDigit(source[position]))
                 position++;
             if (position == exponentStart)
-                throw new BasicSyntaxException("An exponent needs a number.", position);
+                throw new BasicSyntaxException("Exponent needs number", position);
         }
 
         return new BasicToken(BasicTokenKind.Number, source[start..position], start);
@@ -240,6 +240,6 @@ public static class BasicTokenizer
         if ("(),;:'".Contains(character))
             return new BasicToken(BasicTokenKind.Separator, character.ToString(), start);
 
-        throw new BasicSyntaxException($"Unexpected character '{character}'.", start);
+        throw new BasicSyntaxException($"Bad char '{character}'", start);
     }
 }

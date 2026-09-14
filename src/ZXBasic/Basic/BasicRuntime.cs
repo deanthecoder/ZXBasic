@@ -102,7 +102,7 @@ public sealed class BasicRuntime
     {
         var letter = char.ToUpperInvariant(character);
         if (letter is < 'A' or > 'U')
-            throw new BasicSyntaxException("USR needs a UDG letter from A to U.", 0);
+            throw new BasicSyntaxException("Bad UDG letter", 0);
         return UdgAddress + (letter - 'A') * 8;
     }
 
@@ -140,7 +140,7 @@ public sealed class BasicRuntime
         var target = GetStringVariable(name);
         if (position < 1 || position > target.Length)
         {
-            throw new BasicSyntaxException("String subscript is out of range.", 0);
+            throw new BasicSyntaxException("Subscript wrong", 0);
         }
 
         var characters = target.ToCharArray();
@@ -169,7 +169,7 @@ public sealed class BasicRuntime
     {
         if (!m_stringArrays.TryGetValue(name, out var array))
         {
-            throw new BasicSyntaxException($"String array {name} has not been dimensioned.", 0);
+            throw new BasicSyntaxException($"Array {name} not DIMed", 0);
         }
         return array.Get(indices);
     }
@@ -178,7 +178,7 @@ public sealed class BasicRuntime
     {
         if (!m_stringArrays.TryGetValue(name, out var array))
         {
-            throw new BasicSyntaxException($"String array {name} has not been dimensioned.", 0);
+            throw new BasicSyntaxException($"Array {name} not DIMed", 0);
         }
         array.Set(indices, value);
     }
@@ -187,7 +187,7 @@ public sealed class BasicRuntime
     {
         if (Font == null)
         {
-            throw new BasicSyntaxException("SCREEN$ needs an available Spectrum font.", 0);
+            throw new BasicSyntaxException("SCREEN$ needs font", 0);
         }
 
         Span<byte> glyph = stackalloc byte[8];
@@ -197,7 +197,7 @@ public sealed class BasicRuntime
         }
         catch (ArgumentOutOfRangeException)
         {
-            throw new BasicSyntaxException("SCREEN$ position is outside the screen.", 0);
+            throw new BasicSyntaxException("SCREEN$ coords bad", 0);
         }
 
         return Font.Recognize(glyph)?.ToString() ?? string.Empty;
@@ -212,7 +212,7 @@ public sealed class BasicRuntime
     {
         if (port != 31)
         {
-            throw new BasicSyntaxException("Only joystick port IN 31 is supported.", 0);
+            throw new BasicSyntaxException("IN port 31 only", 0);
         }
 
         return JoystickProvider?.Invoke() ?? 0;
@@ -226,14 +226,14 @@ public sealed class BasicRuntime
     public double GetArrayValue(string name, IReadOnlyList<int> indices)
     {
         if (!m_arrays.TryGetValue(name, out var array))
-            throw new BasicSyntaxException($"Array {name} has not been dimensioned.", 0);
+            throw new BasicSyntaxException($"Array {name} not DIMed", 0);
         return array.Get(indices);
     }
 
     public void SetArrayValue(string name, IReadOnlyList<int> indices, double value)
     {
         if (!m_arrays.TryGetValue(name, out var array))
-            throw new BasicSyntaxException($"Array {name} has not been dimensioned.", 0);
+            throw new BasicSyntaxException($"Array {name} not DIMed", 0);
         array.Set(indices, value);
     }
 
@@ -241,7 +241,7 @@ public sealed class BasicRuntime
     {
         if (!m_arrays.Remove(name) && !m_stringArrays.Remove(name))
         {
-            throw new BasicSyntaxException($"Array {name} has not been dimensioned.", 0);
+            throw new BasicSyntaxException($"Array {name} not DIMed", 0);
         }
     }
 
@@ -262,7 +262,7 @@ public sealed class BasicRuntime
         var value = ReadNextData();
         if (value.IsString)
         {
-            throw new BasicSyntaxException("READ expected numeric DATA.", 0);
+            throw new BasicSyntaxException("READ needs number", 0);
         }
         return value.Number!.Value;
     }
@@ -272,7 +272,7 @@ public sealed class BasicRuntime
         var value = ReadNextData();
         if (!value.IsString)
         {
-            throw new BasicSyntaxException("READ expected string DATA.", 0);
+            throw new BasicSyntaxException("READ needs string", 0);
         }
         return value.Text!;
     }
@@ -287,7 +287,7 @@ public sealed class BasicRuntime
     {
         if (m_dataPosition >= m_data.Count)
         {
-            throw new BasicSyntaxException("Out of DATA.", 0);
+            throw new BasicSyntaxException("Out of DATA", 0);
         }
 
         return m_data[m_dataPosition++].Value;
@@ -296,9 +296,9 @@ public sealed class BasicRuntime
     public double InvokeFunction(string name, IReadOnlyList<double> arguments)
     {
         if (!m_functions.TryGetValue(name, out var function))
-            throw new BasicSyntaxException($"Function {name} has not been defined.", 0);
+            throw new BasicSyntaxException($"FN {name} undefined", 0);
         if (arguments.Count != function.Parameters.Count)
-            throw new BasicSyntaxException($"Function {name} has the wrong number of arguments.", 0);
+            throw new BasicSyntaxException($"FN {name} args invalid", 0);
 
         var locals = function.Parameters
             .Select((parameter, index) => (parameter, value: arguments[index]))
@@ -377,7 +377,7 @@ public sealed class BasicRuntime
     public void Write(string text)
     {
         if (Font == null)
-            throw new BasicSyntaxException("PRINT needs an available Spectrum font.", 0);
+            throw new BasicSyntaxException("PRINT needs font", 0);
 
         foreach (var character in text)
         {
@@ -448,7 +448,7 @@ public sealed class BasicRuntime
         var screenColumn = Math.Abs((long)column);
         if (screenRow >= PrintRows || screenColumn >= SpectrumScreen.Columns)
         {
-            throw new BasicSyntaxException("AT position is outside the screen.", 0);
+            throw new BasicSyntaxException("AT coords invalid", 0);
         }
 
         PrintRow = (int)screenRow;
@@ -459,7 +459,7 @@ public sealed class BasicRuntime
     {
         if (column is < 0 or > 255)
         {
-            throw new BasicSyntaxException("TAB needs a value from 0 to 255.", 0);
+            throw new BasicSyntaxException("TAB 0-255 only", 0);
         }
 
         var target = column % SpectrumScreen.Columns;

@@ -67,8 +67,13 @@ public class BasicStatementExecutorTests
     [Test]
     public void InkAcceptsSpectrumTransparentAndContrastValues()
     {
-        var executor = new BasicStatementExecutor(new SpectrumScreen());
-        executor.Runtime.Ink = 3;
+        var executor = new BasicStatementExecutor(new SpectrumScreen())
+        {
+            Runtime =
+            {
+                Ink = 3
+            }
+        };
 
         executor.TryExecute(BasicTokenizer.Tokenize("INK 7.6"));
         Assert.That(executor.Runtime.Ink, Is.EqualTo(3), "INK 8 should retain the current ink");
@@ -485,8 +490,13 @@ public class BasicStatementExecutorTests
     [Test]
     public void LetCanUseTheKempstonJoystickPort()
     {
-        var executor = new BasicStatementExecutor(new SpectrumScreen());
-        executor.Runtime.JoystickProvider = () => 1;
+        var executor = new BasicStatementExecutor(new SpectrumScreen())
+        {
+            Runtime =
+            {
+                JoystickProvider = () => 1
+            }
+        };
         executor.Runtime.SetVariable("B", 15);
 
         executor.TryExecute(BasicTokenizer.Tokenize(
@@ -620,6 +630,18 @@ public class BasicStatementExecutorTests
     }
 
     [Test]
+    public void DrawReportsItsOutOfBoundsEndpoint()
+    {
+        var executor = new BasicStatementExecutor(new SpectrumScreen());
+        executor.TryExecute(BasicTokenizer.Tokenize("PLOT 10,20"));
+
+        var exception = Assert.Throws<BasicSyntaxException>(() =>
+            executor.TryExecute(BasicTokenizer.Tokenize("DRAW 246,1")));
+
+        Assert.That(exception!.Message, Is.EqualTo("DRAW 256,21 invalid"));
+    }
+
+    [Test]
     public void PokeAndPeekUsePersistent48KRam()
     {
         var executor = new BasicStatementExecutor(new SpectrumScreen());
@@ -664,7 +686,7 @@ public class BasicStatementExecutorTests
         {
             Assert.That(
                 () => executor.Runtime.GetVariable("A"),
-                Throws.TypeOf<BasicVariableNotFoundException>().With.Message.EqualTo("Variable not found."));
+                Throws.TypeOf<BasicVariableNotFoundException>().With.Message.EqualTo("Variable not found"));
             Assert.That(() => executor.Runtime.GetArrayValue("B", [1]), Throws.TypeOf<BasicSyntaxException>());
             Assert.That(executor.Runtime.Memory.Peek(32768), Is.EqualTo(99));
             Assert.That(executor.Runtime.PlotX, Is.Zero);
@@ -688,7 +710,7 @@ public class BasicStatementExecutorTests
         {
             Assert.That(
                 () => executor.Runtime.GetVariable("A"),
-                Throws.TypeOf<BasicVariableNotFoundException>().With.Message.EqualTo("Variable not found."));
+                Throws.TypeOf<BasicVariableNotFoundException>().With.Message.EqualTo("Variable not found"));
             Assert.That(executor.Runtime.Paper, Is.EqualTo(3));
             Assert.That(executor.Runtime.PlotX, Is.Zero);
             Assert.That(executor.Runtime.PlotY, Is.Zero);

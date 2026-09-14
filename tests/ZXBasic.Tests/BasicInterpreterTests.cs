@@ -63,7 +63,7 @@ public class BasicInterpreterTests
         var exception = Assert.Throws<BasicRuntimeException>(() =>
             new BasicInterpreter(new BasicStatementExecutor(new SpectrumScreen())).Run(program, 20));
 
-        Assert.That(exception!.Message, Is.EqualTo("STATEMENT LOST."));
+        Assert.That(exception!.Message, Is.EqualTo("STATEMENT LOST"));
     }
 
     [Test]
@@ -121,7 +121,7 @@ public class BasicInterpreterTests
         var exception = Assert.Throws<BasicRuntimeException>(() =>
             new BasicInterpreter(new BasicStatementExecutor(new SpectrumScreen())).Run(program));
 
-        Assert.That(exception!.Message, Is.EqualTo("STATEMENT LOST."));
+        Assert.That(exception!.Message, Is.EqualTo("STATEMENT LOST"));
     }
 
     [Test]
@@ -164,7 +164,7 @@ public class BasicInterpreterTests
         var exception = Assert.Throws<BasicRuntimeException>(() =>
             new BasicInterpreter(new BasicStatementExecutor(new SpectrumScreen())).Run(program));
 
-        Assert.That(exception!.Message, Is.EqualTo("RETURN WITHOUT GO SUB."));
+        Assert.That(exception!.Message, Is.EqualTo("RETURN WITHOUT GO SUB"));
     }
 
     [Test]
@@ -233,7 +233,7 @@ public class BasicInterpreterTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(exception!.Message, Is.EqualTo("BREAK INTO PROGRAM."));
+            Assert.That(exception!.Message, Is.EqualTo("BREAK"));
             Assert.That(exception.LineNumber, Is.EqualTo(10));
             Assert.That(exception.StatementNumber, Is.EqualTo(1));
         });
@@ -331,7 +331,7 @@ public class BasicInterpreterTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(exception!.Message, Is.EqualTo("BORDER NEEDS AN INTEGER FROM 0 TO 7."));
+            Assert.That(exception!.Message, Is.EqualTo("BORDER NEEDS 0-7"));
             Assert.That(exception.LineNumber, Is.EqualTo(40));
             Assert.That(exception.StatementNumber, Is.EqualTo(1));
         });
@@ -348,7 +348,7 @@ public class BasicInterpreterTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(exception!.Message, Is.EqualTo("VARIABLE NOT FOUND."));
+            Assert.That(exception!.Message, Is.EqualTo("VARIABLE NOT FOUND"));
             Assert.That(exception.LineNumber, Is.EqualTo(10));
             Assert.That(exception.StatementNumber, Is.EqualTo(1));
         });
@@ -514,7 +514,7 @@ public class BasicInterpreterTests
         var exception = Assert.Throws<BasicRuntimeException>(() =>
             new BasicInterpreter(new BasicStatementExecutor(new SpectrumScreen())).Run(program));
 
-        Assert.That(exception!.Message, Is.EqualTo("OUT OF DATA."));
+        Assert.That(exception!.Message, Is.EqualTo("OUT OF DATA"));
     }
 
     [Test]
@@ -544,7 +544,7 @@ public class BasicInterpreterTests
         var exception = Assert.Throws<BasicRuntimeException>(() =>
             new BasicInterpreter(new BasicStatementExecutor(new SpectrumScreen())).Run(program));
 
-        Assert.That(exception!.Message, Is.EqualTo("READ EXPECTED NUMERIC DATA."));
+        Assert.That(exception!.Message, Is.EqualTo("READ NEEDS NUMBER"));
     }
 
     [Test]
@@ -562,10 +562,10 @@ public class BasicInterpreterTests
         {
             Assert.That(
                 () => executor.Runtime.GetVariable("B"),
-                Throws.TypeOf<BasicVariableNotFoundException>().With.Message.EqualTo("Variable not found."));
+                Throws.TypeOf<BasicVariableNotFoundException>().With.Message.EqualTo("Variable not found"));
             Assert.That(
                 () => executor.Runtime.GetVariable("C"),
-                Throws.TypeOf<BasicVariableNotFoundException>().With.Message.EqualTo("Variable not found."));
+                Throws.TypeOf<BasicVariableNotFoundException>().With.Message.EqualTo("Variable not found"));
         });
     }
 
@@ -731,7 +731,7 @@ public class BasicInterpreterTests
                 () => { },
                 inputProvider: (_, _) => Task.FromResult("42")));
 
-        Assert.That(exception!.Message, Is.EqualTo("INPUT LINE NEEDS A STRING VARIABLE."));
+        Assert.That(exception!.Message, Is.EqualTo("INPUT LINE NEEDS STR"));
     }
 
     [Test]

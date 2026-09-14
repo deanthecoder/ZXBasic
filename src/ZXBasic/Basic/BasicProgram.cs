@@ -38,11 +38,11 @@ public sealed class BasicProgram
     {
         var text = source.Trim();
         if (!BasicLineValidator.IsValid(text))
-            throw new BasicSyntaxException("The program line is not valid Sinclair BASIC.", 0);
+            throw new BasicSyntaxException("Invalid BASIC", 0);
 
         var digitCount = text.TakeWhile(char.IsDigit).Count();
         if (digitCount == 0 || !int.TryParse(text[..digitCount], out var lineNumber) || lineNumber > 9999)
-            throw new BasicSyntaxException("A program line needs a number from 0 to 9999.", 0);
+            throw new BasicSyntaxException("Line number invalid", 0);
 
         var statement = text[digitCount..].Trim();
         if (statement.Length == 0)
@@ -73,9 +73,9 @@ public sealed class BasicProgram
 
     public void Renumber(int start = 10, int step = 10)
     {
-        if (start < 0 || step < 1 || m_lines.Count > 0 && (long)start + (m_lines.Count - 1L) * step > 9999)
+        if (start < 0 || step < 1 || m_lines.Count > 0 && start + (m_lines.Count - 1L) * step > 9999)
         {
-            throw new BasicSyntaxException("RENUMBER would produce a line outside 0 to 9999.", 0);
+            throw new BasicSyntaxException("RENUMBER overflow", 0);
         }
 
         var oldLines = m_lines.Values.ToArray();
@@ -133,7 +133,7 @@ public sealed class BasicProgram
         {
             if (!char.IsDigit(line[0]) || !BasicLineValidator.IsValid(line))
             {
-                throw new BasicSyntaxException("A pasted listing must contain valid numbered BASIC lines.", 0);
+                throw new BasicSyntaxException("Invalid BASIC listing", 0);
             }
         }
 

@@ -13,7 +13,7 @@ namespace ZXBasic.Basic;
 public sealed class BasicVariableNotFoundException : BasicSyntaxException
 {
     public BasicVariableNotFoundException()
-        : base("Variable not found.", 0)
+        : base("Variable not found", 0)
     {
     }
 }

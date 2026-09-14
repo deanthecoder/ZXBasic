@@ -294,7 +294,7 @@ public sealed class SpectrumScreen
     public byte GetAttribute(int row, int column)
     {
         if (row is < 0 or >= Rows || column is < 0 or >= Columns)
-            throw new ArgumentOutOfRangeException(nameof(row), "Attribute coordinates are outside the screen.");
+            throw new ArgumentOutOfRangeException(nameof(row), "Coords exceed screen");
         return m_attributes[row * Columns + column];
     }
 

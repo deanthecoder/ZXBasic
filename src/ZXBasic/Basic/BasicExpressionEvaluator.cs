@@ -24,14 +24,14 @@ public sealed class BasicExpressionEvaluator
     public double Evaluate(IReadOnlyList<BasicToken> tokens)
     {
         if (tokens.Count == 0)
-            throw new BasicSyntaxException("Expected an expression.", 0);
+            throw new BasicSyntaxException("Expression expected", 0);
 
         var parser = new Parser(tokens, m_runtime);
         var value = parser.ParseExpression();
         if (!parser.IsAtEnd)
-            throw new BasicSyntaxException("Unexpected text after the expression.", parser.Position);
+            throw new BasicSyntaxException("Unexpected text", parser.Position);
         if (double.IsNaN(value) || double.IsInfinity(value))
-            throw new BasicSyntaxException("Number out of range.", parser.Position);
+            throw new BasicSyntaxException("Number out of range", parser.Position);
 
         return value;
     }
@@ -40,14 +40,14 @@ public sealed class BasicExpressionEvaluator
     {
         if (tokens.Count == 0)
         {
-            throw new BasicSyntaxException("Expected a string expression.", 0);
+            throw new BasicSyntaxException("String expected", 0);
         }
 
         var parser = new Parser(tokens, m_runtime);
         var value = parser.ParseStringExpression();
         if (!parser.IsAtEnd)
         {
-            throw new BasicSyntaxException("Unexpected text after the string expression.", parser.Position);
+            throw new BasicSyntaxException("Unexpected text", parser.Position);
         }
 
         return value;
@@ -108,7 +108,7 @@ public sealed class BasicExpressionEvaluator
                 var leftText = ParseStringExpression();
                 if (IsAtEnd || !IsComparison(Current))
                 {
-                    throw new BasicSyntaxException("A string value needs a comparison here.", Position);
+                    throw new BasicSyntaxException("Comparison expected", Position);
                 }
 
                 var operation = Current;
@@ -165,7 +165,7 @@ public sealed class BasicExpressionEvaluator
             {
                 var right = ParsePower();
                 if (operation == "/" && right == 0)
-                    throw new BasicSyntaxException("Division by zero.", Position);
+                    throw new BasicSyntaxException("Division by 0", Position);
                 value = operation == "*" ? value * right : value / right;
             }
             return value;
@@ -195,7 +195,7 @@ public sealed class BasicExpressionEvaluator
                 if (IsAtEnd || Current.Kind != BasicTokenKind.Number ||
                     Current.Text.Length > 16 || Current.Text.Any(character => character is not ('0' or '1')))
                 {
-                    throw new BasicSyntaxException("BIN needs up to 16 binary digits.", Position);
+                    throw new BasicSyntaxException("BIN needs 1-16 bits", Position);
                 }
 
                 var value = Convert.ToInt32(Current.Text, 2);
@@ -230,7 +230,7 @@ public sealed class BasicExpressionEvaluator
         private double ParsePrimary()
         {
             if (IsAtEnd)
-                throw new BasicSyntaxException("Expected a number, variable or function.", Position);
+                throw new BasicSyntaxException("Number expected", Position);
 
             var token = Current;
             if (token.Kind == BasicTokenKind.Number)
@@ -256,7 +256,7 @@ public sealed class BasicExpressionEvaluator
             {
                 m_index++;
                 if (IsAtEnd || Current.Kind != BasicTokenKind.Identifier)
-                    throw new BasicSyntaxException("FN needs a function name.", Position);
+                    throw new BasicSyntaxException("FN name expected", Position);
                 var name = Current.Text;
                 m_index++;
                 RequireSeparator("(");
@@ -268,7 +268,7 @@ public sealed class BasicExpressionEvaluator
                 m_index++;
                 var character = ParseStringPrimary();
                 if (character.Length != 1)
-                    throw new BasicSyntaxException("USR needs one UDG letter.", token.Position);
+                    throw new BasicSyntaxException("USR needs UDG", token.Position);
                 return BasicRuntime.GetUdgAddress(character[0]);
             }
 
@@ -285,7 +285,7 @@ public sealed class BasicExpressionEvaluator
                 RequireSeparator("(");
                 var arguments = ParseArgumentList();
                 if (arguments.Count != 2)
-                    throw new BasicSyntaxException("ATTR needs row and column.", token.Position);
+                    throw new BasicSyntaxException("ATTR needs row,col", token.Position);
                 var row = checked((int)Math.Round(arguments[0], MidpointRounding.AwayFromZero));
                 var column = checked((int)Math.Round(arguments[1], MidpointRounding.AwayFromZero));
                 try
@@ -294,7 +294,7 @@ public sealed class BasicExpressionEvaluator
                 }
                 catch (ArgumentOutOfRangeException)
                 {
-                    throw new BasicSyntaxException("ATTR coordinates are outside the screen.", token.Position);
+                    throw new BasicSyntaxException("Coords out of range", token.Position);
                 }
             }
 
@@ -304,7 +304,7 @@ public sealed class BasicExpressionEvaluator
                 RequireSeparator("(");
                 var arguments = ParseArgumentList();
                 if (arguments.Count != 2)
-                    throw new BasicSyntaxException("POINT needs x and y coordinates.", token.Position);
+                    throw new BasicSyntaxException("POINT needs x,y", token.Position);
                 var x = checked((int)Math.Round(arguments[0], MidpointRounding.AwayFromZero));
                 var y = checked((int)Math.Round(arguments[1], MidpointRounding.AwayFromZero));
                 return m_runtime.Screen.IsPixelSet(x, y) ? 1 : 0;
@@ -329,7 +329,7 @@ public sealed class BasicExpressionEvaluator
                 return value;
             }
 
-            throw new BasicSyntaxException("Expected a number, variable or function.", token.Position);
+            throw new BasicSyntaxException("Number expected", token.Position);
         }
 
         public string ParseStringExpression()
@@ -346,7 +346,7 @@ public sealed class BasicExpressionEvaluator
         {
             if (IsAtEnd)
             {
-                throw new BasicSyntaxException("Expected a string value.", Position);
+                throw new BasicSyntaxException("String expected", Position);
             }
 
             var token = Current;
@@ -393,7 +393,7 @@ public sealed class BasicExpressionEvaluator
                 var code = checked((int)Math.Round(ParseUnary(), MidpointRounding.AwayFromZero));
                 if (code is < 0 or > 255)
                 {
-                    throw new BasicSyntaxException("CHR$ needs a value from 0 to 255.", token.Position);
+                    throw new BasicSyntaxException("CHR$ 0-255 only", token.Position);
                 }
                 return ((char)code).ToString();
             }
@@ -414,7 +414,7 @@ public sealed class BasicExpressionEvaluator
                 }
                 catch (BasicSyntaxException)
                 {
-                    throw new BasicSyntaxException("VAL$ needs a valid string expression.", token.Position);
+                    throw new BasicSyntaxException("VAL$ invalid", token.Position);
                 }
             }
 
@@ -425,7 +425,7 @@ public sealed class BasicExpressionEvaluator
                 return value;
             }
 
-            throw new BasicSyntaxException("Expected a string value.", token.Position);
+            throw new BasicSyntaxException("String expected", token.Position);
         }
 
         private string ApplySlice(string value)
@@ -454,7 +454,7 @@ public sealed class BasicExpressionEvaluator
             RequireSeparator(")");
             if (start < 1 || end < start || end > value.Length)
             {
-                throw new BasicSyntaxException("String subscript is out of range.", Position);
+                throw new BasicSyntaxException("Subscript wrong", Position);
             }
 
             return value[(start - 1)..end];
@@ -472,7 +472,7 @@ public sealed class BasicExpressionEvaluator
         {
             if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
             {
-                throw new BasicSyntaxException("VAL needs a numeric string.", 0);
+                throw new BasicSyntaxException("VAL needs number", 0);
             }
             return value;
         }
@@ -489,7 +489,7 @@ public sealed class BasicExpressionEvaluator
                 if (MatchSeparator(")"))
                     return arguments;
                 if (!MatchSeparator(","))
-                    throw new BasicSyntaxException("Expected ',' or ')'.", Position);
+                    throw new BasicSyntaxException("Expected , or )", Position);
             }
         }
 
@@ -531,7 +531,7 @@ public sealed class BasicExpressionEvaluator
             }
             catch (ArgumentOutOfRangeException)
             {
-                throw new BasicSyntaxException("PEEK address is outside 48K Spectrum RAM.", Position);
+                throw new BasicSyntaxException("PEEK address invalid", Position);
             }
         }
 
@@ -564,7 +564,7 @@ public sealed class BasicExpressionEvaluator
         private void RequireSeparator(string separator)
         {
             if (!MatchSeparator(separator))
-                throw new BasicSyntaxException($"Expected '{separator}'.", Position);
+                throw new BasicSyntaxException($"Expected '{separator}'", Position);
         }
 
         private static bool IsComparison(BasicToken token)

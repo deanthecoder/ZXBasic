@@ -74,7 +74,7 @@ public sealed class BasicInterpreter
             var targetPosition = FindTargetPosition(linePositions, startLineNumber.Value);
             if (!targetPosition.HasValue)
             {
-                throw new BasicRuntimeException("STATEMENT LOST.", startLineNumber.Value, 1);
+                throw new BasicRuntimeException("STATEMENT LOST", startLineNumber.Value, 1);
             }
 
             programCounter = targetPosition.Value;
@@ -91,7 +91,7 @@ public sealed class BasicInterpreter
             var instruction = instructions[programCounter];
             if (cancellationToken.IsCancellationRequested)
             {
-                throw RuntimeError("Break into program.", instruction);
+                throw RuntimeError("BREAK", instruction);
             }
 
             executedStatements++;
@@ -145,7 +145,7 @@ public sealed class BasicInterpreter
             }
             catch (OperationCanceledException)
             {
-                throw RuntimeError("Break into program.", instruction);
+                throw RuntimeError("BREAK", instruction);
             }
             catch (BasicSyntaxException exception)
             {
@@ -178,7 +178,7 @@ public sealed class BasicInterpreter
     {
         if (inputProvider == null)
         {
-            throw new BasicSyntaxException("INPUT needs an interactive terminal.", instruction.Tokens[0].Position);
+            throw new BasicSyntaxException("INPUT needs terminal", instruction.Tokens[0].Position);
         }
 
         var tokens = instruction.Tokens;
@@ -193,7 +193,7 @@ public sealed class BasicInterpreter
                 position++;
                 if (position >= tokens.Count || tokens[position].Text is not (";" or ","))
                 {
-                    throw new BasicSyntaxException("An INPUT prompt needs ';' or ','.", tokens[0].Position);
+                    throw new BasicSyntaxException("INPUT needs ; or ,", tokens[0].Position);
                 }
                 position++;
             }
@@ -206,13 +206,13 @@ public sealed class BasicInterpreter
 
             if (position >= tokens.Count || tokens[position].Kind != BasicTokenKind.Identifier)
             {
-                throw new BasicSyntaxException("INPUT needs a variable.", tokens[0].Position);
+                throw new BasicSyntaxException("INPUT needs variable", tokens[0].Position);
             }
 
             var variable = tokens[position++].Text;
             if (lineInput && !variable.EndsWith('$'))
             {
-                throw new BasicSyntaxException("INPUT LINE needs a string variable.", tokens[0].Position);
+                throw new BasicSyntaxException("INPUT LINE needs str", tokens[0].Position);
             }
 
             int[]? indices = null;
@@ -235,7 +235,7 @@ public sealed class BasicInterpreter
 
                 if (depth != 0)
                 {
-                    throw new BasicSyntaxException("INPUT array target needs ')'.", tokens[0].Position);
+                    throw new BasicSyntaxException("INPUT array needs )", tokens[0].Position);
                 }
 
                 indices = EvaluateArguments(tokens, argumentStart, position - 1);
@@ -273,7 +273,7 @@ public sealed class BasicInterpreter
 
             if (tokens[position].Text is not ("," or ";"))
             {
-                throw new BasicSyntaxException("INPUT variables need a separator.", tokens[position].Position);
+                throw new BasicSyntaxException("INPUT needs separator", tokens[position].Position);
             }
             position++;
         }
@@ -289,7 +289,7 @@ public sealed class BasicInterpreter
     {
         var tokens = instruction.Tokens;
         if (tokens.Count == 0)
-            throw new BasicSyntaxException("Nonsense in BASIC.", 0);
+            throw new BasicSyntaxException("Nonsense in BASIC", 0);
 
         switch (tokens[0].Keyword)
         {
@@ -302,7 +302,7 @@ public sealed class BasicInterpreter
                 return BasicStatementResult.Continue;
             case BasicKeyword.Return:
                 if (calls.Count == 0)
-                    throw new BasicSyntaxException("RETURN without GO SUB.", tokens[0].Position);
+                    throw new BasicSyntaxException("RETURN without GO SUB", tokens[0].Position);
                 programCounter = calls.Pop();
                 return BasicStatementResult.Continue;
             case BasicKeyword.Run:
@@ -329,7 +329,7 @@ public sealed class BasicInterpreter
 
         var result = m_statementExecutor.Execute(tokens);
         if (!result.Handled)
-            throw RuntimeError("Not implemented.", instruction);
+            throw RuntimeError("Not implemented", instruction);
         programCounter++;
         return result;
     }
@@ -344,7 +344,7 @@ public sealed class BasicInterpreter
     {
         var thenIndex = FindKeyword(instruction.Tokens, BasicKeyword.Then, 1);
         if (thenIndex < 0 || thenIndex == instruction.Tokens.Count - 1)
-            throw new BasicSyntaxException("IF needs THEN and a statement.", instruction.Tokens[0].Position);
+            throw new BasicSyntaxException("IF needs THEN stmt", instruction.Tokens[0].Position);
 
         var condition = Evaluate(instruction.Tokens, 1, thenIndex);
         if (condition == 0)
@@ -402,18 +402,18 @@ public sealed class BasicInterpreter
     {
         var tokens = instruction.Tokens;
         if (tokens.Count < 6 || tokens[1].Kind != BasicTokenKind.Identifier || tokens[2].Text != "=")
-            throw new BasicSyntaxException("FOR needs a variable, start and limit.", tokens[0].Position);
+            throw new BasicSyntaxException("FOR needs var=...TO", tokens[0].Position);
 
         var toIndex = FindKeyword(tokens, BasicKeyword.To, 3);
         var stepIndex = FindKeyword(tokens, BasicKeyword.Step, toIndex + 1);
         if (toIndex < 0)
-            throw new BasicSyntaxException("FOR needs TO.", tokens[0].Position);
+            throw new BasicSyntaxException("FOR needs TO", tokens[0].Position);
 
         var start = Evaluate(tokens, 3, toIndex);
         var limit = Evaluate(tokens, toIndex + 1, stepIndex < 0 ? tokens.Count : stepIndex);
         var step = stepIndex < 0 ? 1 : Evaluate(tokens, stepIndex + 1, tokens.Count);
         if (step == 0)
-            throw new BasicSyntaxException("FOR STEP cannot be zero.", tokens[0].Position);
+            throw new BasicSyntaxException("FOR STEP 0 invalid", tokens[0].Position);
 
         var variable = tokens[1].Text;
         m_statementExecutor.Runtime.SetVariable(variable, start);
@@ -431,13 +431,13 @@ public sealed class BasicInterpreter
     {
         var tokens = instruction.Tokens;
         if (tokens.Count > 2 || tokens.Count == 2 && tokens[1].Kind != BasicTokenKind.Identifier)
-            throw new BasicSyntaxException("NEXT takes an optional loop variable.", tokens[0].Position);
+            throw new BasicSyntaxException("NEXT needs var", tokens[0].Position);
         if (loops.Count == 0)
-            throw new BasicSyntaxException("NEXT without FOR.", tokens[0].Position);
+            throw new BasicSyntaxException("NEXT without FOR", tokens[0].Position);
 
         var loop = loops[^1];
         if (tokens.Count == 2 && !tokens[1].Text.Equals(loop.Variable, StringComparison.OrdinalIgnoreCase))
-            throw new BasicSyntaxException("NEXT variable does not match FOR.", tokens[1].Position);
+            throw new BasicSyntaxException("NEXT var mismatch", tokens[1].Position);
 
         var value = m_statementExecutor.Runtime.GetVariable(loop.Variable) + loop.Step;
         m_statementExecutor.Runtime.SetVariable(loop.Variable, value);
@@ -459,7 +459,7 @@ public sealed class BasicInterpreter
         var lineNumber = checked((int)Math.Round(m_expressionEvaluator.Evaluate(expression), MidpointRounding.AwayFromZero));
         var targetPosition = FindTargetPosition(linePositions, lineNumber);
         if (!targetPosition.HasValue)
-            throw RuntimeError("Statement lost.", instruction);
+            throw RuntimeError("Statement lost", instruction);
         return targetPosition.Value;
     }
 
@@ -498,7 +498,7 @@ public sealed class BasicInterpreter
             }
         }
 
-        throw RuntimeError("FOR without NEXT.", instructions[forPosition]);
+        throw RuntimeError("FOR without NEXT", instructions[forPosition]);
     }
 
     private double Evaluate(IReadOnlyList<BasicToken> tokens, int start, int end)
@@ -598,7 +598,7 @@ public sealed class BasicInterpreter
 
                 if (i == start)
                 {
-                    throw RuntimeError("DATA contains an empty value.", instruction);
+                    throw RuntimeError("Empty DATA", instruction);
                 }
 
                 try
@@ -625,7 +625,7 @@ public sealed class BasicInterpreter
     {
         var tokens = instruction.Tokens;
         if (tokens.Count < 7 || tokens[1].Kind != BasicTokenKind.Identifier || tokens[2].Text != "(")
-            throw RuntimeError("Invalid DEF FN.", instruction);
+            throw RuntimeError("Invalid DEF FN", instruction);
 
         var closeParenthesis = -1;
         for (var i = 3; i < tokens.Count; i++)
@@ -637,14 +637,14 @@ public sealed class BasicInterpreter
             }
         }
         if (closeParenthesis < 0 || closeParenthesis + 2 >= tokens.Count || tokens[closeParenthesis + 1].Text != "=")
-            throw RuntimeError("Invalid DEF FN.", instruction);
+            throw RuntimeError("Invalid DEF FN", instruction);
 
         var parameters = new List<string>();
         for (var i = 3; i < closeParenthesis; i += 2)
         {
             if (tokens[i].Kind != BasicTokenKind.Identifier ||
                 i + 1 < closeParenthesis && tokens[i + 1].Text != ",")
-                throw RuntimeError("Invalid DEF FN parameters.", instruction);
+                throw RuntimeError("Invalid FN params", instruction);
             parameters.Add(tokens[i].Text);
         }
 

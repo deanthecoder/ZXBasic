@@ -39,14 +39,14 @@ public static class SnaBasicImporter
         ArgumentNullException.ThrowIfNull(snapshot);
         if (snapshot.Length != SnapshotLength)
         {
-            throw new BasicSyntaxException("A 48K SNA snapshot must contain 49179 bytes.", 0);
+            throw new BasicSyntaxException("SNA size 49179 only", 0);
         }
 
         var programAddress = ReadWord(snapshot, ProgAddress);
         var variablesAddress = ReadWord(snapshot, VarsAddress);
         if (programAddress < FirstRamAddress || variablesAddress < programAddress || variablesAddress > 65535)
         {
-            throw new BasicSyntaxException("The snapshot contains invalid BASIC program pointers.", 0);
+            throw new BasicSyntaxException("Bad BASIC pointers", 0);
         }
 
         var lines = new List<string>();
@@ -55,7 +55,7 @@ public static class SnaBasicImporter
         {
             if (address + 4 > variablesAddress)
             {
-                throw new BasicSyntaxException("The snapshot contains a truncated BASIC line header.", 0);
+                throw new BasicSyntaxException("Truncated BASIC line", 0);
             }
 
             var lineNumber = ReadByte(snapshot, address) * 256 + ReadByte(snapshot, address + 1);
@@ -65,7 +65,7 @@ public static class SnaBasicImporter
             if (lineNumber > 9999 || lineLength < 1 || nextAddress > variablesAddress ||
                 ReadByte(snapshot, nextAddress - 1) != 0x0d)
             {
-                throw new BasicSyntaxException("The snapshot contains an invalid BASIC line.", 0);
+                throw new BasicSyntaxException("Invalid BASIC line", 0);
             }
 
             lines.Add($"{lineNumber} {Detokenize(snapshot, textAddress, nextAddress - 1)}");
@@ -85,7 +85,7 @@ public static class SnaBasicImporter
             {
                 if (address + 5 >= endAddress)
                 {
-                    throw new BasicSyntaxException("The snapshot contains a truncated BASIC number.", 0);
+                    throw new BasicSyntaxException("Truncated number", 0);
                 }
                 address += 5;
                 continue;

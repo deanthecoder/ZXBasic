@@ -47,7 +47,7 @@ public sealed class BasicStatementExecutor
         var statements = SplitTopLevel(tokens, 0, ":");
         if (statements.Any(statement => statement.Count == 0))
         {
-            throw new BasicSyntaxException("A direct statement cannot be empty.", 0);
+            throw new BasicSyntaxException("Empty statement", 0);
         }
 
         var result = BasicStatementResult.Continue;
@@ -65,7 +65,7 @@ public sealed class BasicStatementExecutor
     public BasicStatementResult Execute(IReadOnlyList<BasicToken> tokens)
     {
         if (tokens.Count == 0 || tokens[0].Kind != BasicTokenKind.Keyword)
-            throw new BasicSyntaxException("A statement must begin with a command.", 0);
+            throw new BasicSyntaxException("Command expected", 0);
 
         return tokens[0].Keyword switch
         {
@@ -106,7 +106,7 @@ public sealed class BasicStatementExecutor
     {
         var value = ToInteger(Evaluate(tokens, 1));
         if (value is < 0 || value > maximum)
-            throw new BasicSyntaxException($"{command} needs an integer from 0 to {maximum}.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException($"{command} needs 0-{maximum}", ArgumentPosition(tokens));
 
         assign((byte)value);
         return BasicStatementResult.Continue;
@@ -117,7 +117,7 @@ public sealed class BasicStatementExecutor
         var value = ToInteger(Evaluate(tokens, 1));
         if (value is < 0 or > 9)
         {
-            throw new BasicSyntaxException("INK needs a value from 0 to 9.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException("INK 0-9 only", ArgumentPosition(tokens));
         }
 
         if (value < 8)
@@ -139,7 +139,7 @@ public sealed class BasicStatementExecutor
     {
         var value = ToInteger(Evaluate(tokens, 1));
         if (value is < 0 or > 1)
-            throw new BasicSyntaxException($"{command} needs 0 or 1.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException($"{command} 0/1 only", ArgumentPosition(tokens));
 
         assign(value == 1);
         return BasicStatementResult.Continue;
@@ -155,11 +155,11 @@ public sealed class BasicStatementExecutor
     private BasicStatementResult ExecuteLet(IReadOnlyList<BasicToken> tokens)
     {
         if (tokens.Count < 4 || tokens[1].Kind != BasicTokenKind.Identifier)
-            throw new BasicSyntaxException("LET needs a variable and an expression.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException("LET needs var=value", ArgumentPosition(tokens));
 
         var equals = FindTopLevel(tokens, 2, "=");
         if (equals < 0 || equals == tokens.Count - 1)
-            throw new BasicSyntaxException("LET needs '=' and an expression.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException("LET needs value", ArgumentPosition(tokens));
 
         if (tokens[1].Text.EndsWith('$'))
         {
@@ -172,7 +172,7 @@ public sealed class BasicStatementExecutor
 
             if (tokens[2].Text != "(" || tokens[equals - 1].Text != ")")
             {
-                throw new BasicSyntaxException("Invalid string array assignment.", tokens[1].Position);
+                throw new BasicSyntaxException("Bad string array LET", tokens[1].Position);
             }
 
             var indices = EvaluateArguments(tokens, 3, equals - 1).Select(ToInteger).ToArray();
@@ -186,7 +186,7 @@ public sealed class BasicStatementExecutor
             }
             else
             {
-                throw new BasicSyntaxException("Invalid string slice assignment.", tokens[1].Position);
+                throw new BasicSyntaxException("Bad string slice LET", tokens[1].Position);
             }
             return BasicStatementResult.Continue;
         }
@@ -197,7 +197,7 @@ public sealed class BasicStatementExecutor
         else
         {
             if (tokens[2].Text != "(" || tokens[equals - 1].Text != ")")
-                throw new BasicSyntaxException("Invalid array assignment.", tokens[2].Position);
+                throw new BasicSyntaxException("Bad array LET", tokens[2].Position);
             var indices = EvaluateArguments(tokens, 3, equals - 1).Select(ToInteger).ToArray();
             Runtime.SetArrayValue(tokens[1].Text, indices, value);
         }
@@ -208,7 +208,7 @@ public sealed class BasicStatementExecutor
     {
         if (tokens.Count < 5 || tokens[1].Kind != BasicTokenKind.Identifier ||
             tokens[2].Text != "(" || tokens[^1].Text != ")")
-            throw new BasicSyntaxException("DIM needs an array name and dimensions.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException("DIM needs array()", ArgumentPosition(tokens));
 
         var dimensions = EvaluateArguments(tokens, 3, tokens.Count - 1).Select(ToInteger).ToArray();
         if (tokens[1].Text.EndsWith('$'))
@@ -227,7 +227,7 @@ public sealed class BasicStatementExecutor
         var names = SplitTopLevel(tokens, 1, ",");
         if (names.Count == 0 || names.Any(name => name.Count != 1 || name[0].Kind != BasicTokenKind.Identifier))
         {
-            throw new BasicSyntaxException("ERASE needs one or more array names.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException("ERASE needs array", ArgumentPosition(tokens));
         }
 
         foreach (var name in names)
@@ -243,12 +243,12 @@ public sealed class BasicStatementExecutor
 
         var comma = FindTopLevel(tokens, position, ",");
         if (comma < 0)
-            throw new BasicSyntaxException("PLOT needs x and y coordinates.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException("PLOT needs x,y", ArgumentPosition(tokens));
 
         var x = ToInteger(Evaluate(tokens, position, comma));
         var y = ToInteger(Evaluate(tokens, comma + 1, tokens.Count));
         if (x is < 0 or >= SpectrumScreen.Width || y is < 0 or >= 176)
-            throw new BasicSyntaxException("PLOT coordinates are outside the BASIC drawing area.", tokens[position].Position);
+            throw new BasicSyntaxException("Coords out of range", tokens[position].Position);
 
         Runtime.Screen.Plot(
             x,
@@ -269,12 +269,12 @@ public sealed class BasicStatementExecutor
         var attributes = ParseDrawingAttributes(tokens, "DRAW", out var position);
         var values = EvaluateArguments(tokens, position, tokens.Count);
         if (values.Count is < 2 or > 3)
-            throw new BasicSyntaxException("DRAW needs x and y offsets and an optional angle.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException("DRAW needs 2/3 args", ArgumentPosition(tokens));
 
         var x = Runtime.PlotX + ToInteger(values[0]);
         var y = Runtime.PlotY + ToInteger(values[1]);
         if (x is < 0 or >= SpectrumScreen.Width || y is < 0 or >= 176)
-            throw new BasicSyntaxException("DRAW ends outside the BASIC drawing area.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException($"DRAW {x},{y} invalid", ArgumentPosition(tokens));
 
         if (values.Count == 2 || Math.Abs(values[2]) < 1e-10)
         {
@@ -323,7 +323,7 @@ public sealed class BasicStatementExecutor
             if (points[segment].X is < 0 or >= SpectrumScreen.Width ||
                 points[segment].Y is < 0 or >= SpectrumScreen.DrawingHeight)
             {
-                throw new BasicSyntaxException("DRAW arc leaves the BASIC drawing area.", position);
+                throw new BasicSyntaxException("DRAW arc out of range", position);
             }
         }
 
@@ -355,14 +355,14 @@ public sealed class BasicStatementExecutor
         var attributes = ParseDrawingAttributes(tokens, "CIRCLE", out var position);
         var values = EvaluateArguments(tokens, position, tokens.Count);
         if (values.Count != 3)
-            throw new BasicSyntaxException("CIRCLE needs x, y and radius.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException("CIRCLE needs x,y,r", ArgumentPosition(tokens));
 
         var x = ToInteger(values[0]);
         var y = ToInteger(values[1]);
         var radius = ToInteger(values[2]);
         if (radius < 0 || x - radius < 0 || x + radius >= SpectrumScreen.Width ||
             y - radius < 0 || y + radius >= 176)
-            throw new BasicSyntaxException("CIRCLE lies outside the BASIC drawing area.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException("CIRCLE out of range", ArgumentPosition(tokens));
 
         Runtime.Screen.DrawCircle(
             x,
@@ -403,7 +403,7 @@ public sealed class BasicStatementExecutor
             if (semicolon < 0)
             {
                 throw new BasicSyntaxException(
-                    $"A {command} color item must end with ';'.",
+                    $"{command} color needs ;",
                     modifierPosition);
             }
 
@@ -425,7 +425,7 @@ public sealed class BasicStatementExecutor
         {
             if (value is < 0 or > 7)
             {
-                throw new BasicSyntaxException("A color must be from 0 to 7.", position);
+                throw new BasicSyntaxException("Color 0-7 only", position);
             }
 
             return modifier == BasicKeyword.Ink
@@ -436,7 +436,7 @@ public sealed class BasicStatementExecutor
         if (value is < 0 or > 1)
         {
             throw new BasicSyntaxException(
-                $"{modifier.ToString().ToUpperInvariant()} needs 0 or 1.",
+                $"{modifier.ToString().ToUpperInvariant()} 0/1 only",
                 position);
         }
 
@@ -533,7 +533,7 @@ public sealed class BasicStatementExecutor
                 var controlSeparator = coordinateComma < 0 ? -1 : FindNextPrintSeparator(tokens, coordinateComma + 1);
                 if (coordinateComma < 0)
                 {
-                    throw new BasicSyntaxException("PRINT AT needs row and column.", tokens[position].Position);
+                    throw new BasicSyntaxException("PRINT AT needs coords", tokens[position].Position);
                 }
 
                 var controlEnd = controlSeparator < 0 ? tokens.Count : controlSeparator;
@@ -586,7 +586,7 @@ public sealed class BasicStatementExecutor
             var separator = FindNextPrintSeparator(tokens, position);
             var end = separator < 0 ? tokens.Count : separator;
             if (end == position)
-                throw new BasicSyntaxException("PRINT needs a value before its separator.", tokens[position].Position);
+                throw new BasicSyntaxException("PRINT needs value", tokens[position].Position);
 
             if (BasicExpressionEvaluator.IsStringExpression(tokens, position))
                 Runtime.Write(m_expressionEvaluator.EvaluateString(tokens.Skip(position).Take(end - position).ToArray()));
@@ -620,7 +620,7 @@ public sealed class BasicStatementExecutor
     {
         var frames = ToInteger(Evaluate(tokens, 1));
         if (frames is < 0 or > 65535)
-            throw new BasicSyntaxException("PAUSE needs a value from 0 to 65535.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException("PAUSE 0-65535 only", ArgumentPosition(tokens));
         return BasicStatementResult.Pause(frames);
     }
 
@@ -628,12 +628,12 @@ public sealed class BasicStatementExecutor
     {
         var comma = FindTopLevel(tokens, 1, ",");
         if (comma < 0)
-            throw new BasicSyntaxException("BEEP needs duration and pitch values.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException("BEEP needs 2 values", ArgumentPosition(tokens));
         var duration = Evaluate(tokens, 1, comma);
         var pitch = Evaluate(tokens, comma + 1, tokens.Count);
         if (duration is < 0 or > 10 || pitch is < -60 or > 69)
         {
-            throw new BasicSyntaxException("BEEP duration or pitch is out of range.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException("BEEP out of range", ArgumentPosition(tokens));
         }
 
         var frames = checked((int)Math.Round(duration * 50, MidpointRounding.AwayFromZero));
@@ -652,14 +652,14 @@ public sealed class BasicStatementExecutor
         var comma = FindTopLevel(tokens, 1, ",");
         if (comma < 0)
         {
-            throw new BasicSyntaxException("POKE needs an address and value.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException("POKE needs addr,value", ArgumentPosition(tokens));
         }
 
         var address = ToInteger(Evaluate(tokens, 1, comma));
         var value = ToInteger(Evaluate(tokens, comma + 1, tokens.Count));
         if (value is < 0 or > 255)
         {
-            throw new BasicSyntaxException("POKE needs a value from 0 to 255.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException("POKE value 0-255 only", ArgumentPosition(tokens));
         }
 
         try
@@ -668,7 +668,7 @@ public sealed class BasicStatementExecutor
         }
         catch (ArgumentOutOfRangeException)
         {
-            throw new BasicSyntaxException("POKE address is outside 48K Spectrum RAM.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException("POKE address invalid", ArgumentPosition(tokens));
         }
 
         return BasicStatementResult.Continue;
@@ -679,14 +679,14 @@ public sealed class BasicStatementExecutor
         var targets = SplitTopLevel(tokens, 1, ",");
         if (targets.Count == 0)
         {
-            throw new BasicSyntaxException("READ needs at least one variable.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException("READ needs variable", ArgumentPosition(tokens));
         }
 
         foreach (var target in targets)
         {
             if (target.Count == 0 || target[0].Kind != BasicTokenKind.Identifier)
             {
-                throw new BasicSyntaxException("READ needs variable names.", ArgumentPosition(tokens));
+                throw new BasicSyntaxException("READ needs variable", ArgumentPosition(tokens));
             }
 
             if (target[0].Text.EndsWith('$'))
@@ -700,7 +700,7 @@ public sealed class BasicStatementExecutor
 
                 if (target.Count < 4 || target[1].Text != "(" || target[^1].Text != ")")
                 {
-                    throw new BasicSyntaxException("Invalid READ string array target.", target[0].Position);
+                    throw new BasicSyntaxException("Bad READ target", target[0].Position);
                 }
 
                 var stringIndices = EvaluateArguments(target, 2, target.Count - 1).Select(ToInteger).ToArray();
@@ -717,7 +717,7 @@ public sealed class BasicStatementExecutor
 
             if (target.Count < 4 || target[1].Text != "(" || target[^1].Text != ")")
             {
-                throw new BasicSyntaxException("Invalid READ array target.", target[0].Position);
+                throw new BasicSyntaxException("Bad READ target", target[0].Position);
             }
 
             var indices = EvaluateArguments(target, 2, target.Count - 1).Select(ToInteger).ToArray();
@@ -732,7 +732,7 @@ public sealed class BasicStatementExecutor
         var lineNumber = tokens.Count == 1 ? 0 : ToInteger(Evaluate(tokens, 1));
         if (lineNumber is < 0 or > 9999)
         {
-            throw new BasicSyntaxException("RESTORE needs a line number from 0 to 9999.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException("RESTORE 0-9999 only", ArgumentPosition(tokens));
         }
 
         Runtime.RestoreData(lineNumber);
@@ -746,7 +746,7 @@ public sealed class BasicStatementExecutor
             var ramTop = ToInteger(Evaluate(tokens, 1));
             if (ramTop is < SpectrumMemory.FirstAddress or > SpectrumMemory.LastAddress)
             {
-                throw new BasicSyntaxException("CLEAR address is outside 48K Spectrum RAM.", ArgumentPosition(tokens));
+                throw new BasicSyntaxException("CLEAR address invalid", ArgumentPosition(tokens));
             }
         }
 
@@ -792,7 +792,7 @@ public sealed class BasicStatementExecutor
         BasicStatementResult? result = null)
     {
         if (tokens.Count != 1)
-            throw new BasicSyntaxException($"{tokens[0].Text} does not take arguments.", ArgumentPosition(tokens));
+            throw new BasicSyntaxException($"{tokens[0].Text} no args", ArgumentPosition(tokens));
         return result ?? BasicStatementResult.Continue;
     }
 

@@ -95,7 +95,7 @@ public sealed class SpectrumTerminal : Control
         ShowListingResult(result);
         if (!result.IsValid)
         {
-            throw new BasicSyntaxException("The snapshot contains an unsupported BASIC line.", 0);
+            throw new BasicSyntaxException("Unsupported line", 0);
         }
     }
 
@@ -124,7 +124,7 @@ public sealed class SpectrumTerminal : Control
         ShowListingResult(result);
         if (!result.IsValid)
         {
-            throw new BasicSyntaxException("The listing contains an unsupported BASIC line.", 0);
+            throw new BasicSyntaxException("Unsupported line", 0);
         }
     }
 
@@ -165,12 +165,19 @@ public sealed class SpectrumTerminal : Control
     {
         Focusable = true;
         UpdateBitmapInterpolationMode();
-        m_statementExecutor = new BasicStatementExecutor(m_screen, m_font);
-        m_statementExecutor.Runtime.InkeyProvider = ConsumeInkey;
-        m_statementExecutor.Runtime.JoystickProvider = () => m_joystickInput.State;
+        m_statementExecutor = new BasicStatementExecutor(m_screen, m_font)
+        {
+            Runtime =
+            {
+                InkeyProvider = ConsumeInkey,
+                JoystickProvider = () => m_joystickInput.State
+            }
+        };
         m_joystickInput.Start();
-        m_interpreter = new BasicInterpreter(m_statementExecutor);
-        m_interpreter.ExecutionSpeed = BasicExecutionSpeed.Spectrum;
+        m_interpreter = new BasicInterpreter(m_statementExecutor)
+        {
+            ExecutionSpeed = BasicExecutionSpeed.Spectrum
+        };
 
         m_frame = new WriteableBitmap(
             new PixelSize(SpectrumScreen.FrameWidth, SpectrumScreen.FrameHeight),
@@ -904,7 +911,7 @@ public sealed class SpectrumTerminal : Control
         var lineNumber = checked((int)Math.Round(value, MidpointRounding.AwayFromZero));
         if (lineNumber is < 0 or > 9999)
         {
-            throw new BasicSyntaxException("A line number must be from 0 to 9999.", tokens[1].Position);
+            throw new BasicSyntaxException("Bad line number", tokens[1].Position);
         }
 
         return lineNumber;

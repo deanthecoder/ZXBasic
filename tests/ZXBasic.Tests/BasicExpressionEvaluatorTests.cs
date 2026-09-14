@@ -63,7 +63,7 @@ public class BasicExpressionEvaluatorTests
         var exception = Assert.Throws<BasicVariableNotFoundException>(() =>
             evaluator.Evaluate(BasicTokenizer.Tokenize("P")));
 
-        Assert.That(exception!.Message, Is.EqualTo("Variable not found."));
+        Assert.That(exception!.Message, Is.EqualTo("Variable not found"));
     }
 
     [Test]
@@ -74,7 +74,7 @@ public class BasicExpressionEvaluatorTests
         var exception = Assert.Throws<BasicVariableNotFoundException>(() =>
             evaluator.EvaluateString(BasicTokenizer.Tokenize("P$")));
 
-        Assert.That(exception!.Message, Is.EqualTo("Variable not found."));
+        Assert.That(exception!.Message, Is.EqualTo("Variable not found"));
     }
 
     [Test]
@@ -187,7 +187,7 @@ public class BasicExpressionEvaluatorTests
         var exception = Assert.Throws<BasicSyntaxException>(() =>
             evaluator.Evaluate(BasicTokenizer.Tokenize("IN 32")));
 
-        Assert.That(exception!.Message, Is.EqualTo("Only joystick port IN 31 is supported."));
+        Assert.That(exception!.Message, Is.EqualTo("IN port 31 only"));
     }
 
     [TestCase("\"A\"=\"A\"", 1)]

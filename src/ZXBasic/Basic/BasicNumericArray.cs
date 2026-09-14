@@ -19,7 +19,7 @@ public sealed class BasicNumericArray
     {
         m_dimensions = dimensions.ToArray();
         if (m_dimensions.Length == 0 || m_dimensions.Any(size => size < 1))
-            throw new BasicSyntaxException("Array dimensions must be positive.", 0);
+            throw new BasicSyntaxException("Bad array dimensions", 0);
 
         m_values = new double[m_dimensions.Aggregate(1, (total, size) => checked(total * size))];
     }
@@ -37,13 +37,13 @@ public sealed class BasicNumericArray
     private int GetOffset(IReadOnlyList<int> indices)
     {
         if (indices.Count != m_dimensions.Length)
-            throw new BasicSyntaxException("Wrong number of array indices.", 0);
+            throw new BasicSyntaxException("Wrong index count", 0);
 
         var offset = 0;
         for (var i = 0; i < indices.Count; i++)
         {
             if (indices[i] < 1 || indices[i] > m_dimensions[i])
-                throw new BasicSyntaxException("Array index out of range.", 0);
+                throw new BasicSyntaxException("Index out of range", 0);
             offset = checked(offset * m_dimensions[i] + indices[i] - 1);
         }
         return offset;
