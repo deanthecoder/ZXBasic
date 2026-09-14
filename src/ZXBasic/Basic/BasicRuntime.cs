@@ -351,7 +351,7 @@ public sealed class BasicRuntime
         ResetPlotPosition();
     }
 
-    public void ResetPlotPosition()
+    private void ResetPlotPosition()
     {
         PlotX = 0;
         PlotY = 0;

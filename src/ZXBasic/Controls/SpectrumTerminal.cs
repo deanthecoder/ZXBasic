@@ -86,7 +86,7 @@ public sealed class SpectrumTerminal : Control
         set => m_interpreter.ExecutionSpeed = value;
     }
 
-    public void LoadSnapshot(byte[] snapshot)
+    private void LoadSnapshot(byte[] snapshot)
     {
         m_program.Clear();
         ShowLoadedProgram();
@@ -118,7 +118,7 @@ public sealed class SpectrumTerminal : Control
         }
     }
 
-    public void LoadListing(string listing)
+    private void LoadListing(string listing)
     {
         var result = m_program.EnterListingUntilError(listing, replaceExisting: true);
         ShowListingResult(result);

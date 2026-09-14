@@ -14,7 +14,7 @@ public sealed class SpectrumMemory
 {
     public const int FirstAddress = 16384;
     public const int LastAddress = 65535;
-    public const int Size = LastAddress - FirstAddress + 1;
+    private const int Size = LastAddress - FirstAddress + 1;
 
     private readonly byte[] m_ram = new byte[Size];
     private readonly SpectrumScreen? m_screen;

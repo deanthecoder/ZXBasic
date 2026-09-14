@@ -17,6 +17,7 @@
                 <MenuItem Header="File">
                     <MenuItem Header="_Open..." InputGesture="{OnPlatform 'Ctrl+O', macOS='⌘+O'}" Click="OpenClicked" />
                     <MenuItem Header="_Save BASIC As..." InputGesture="{OnPlatform 'Ctrl+S', macOS='⌘+S'}" Click="SaveClicked" />
+                    <MenuItem Header="E_xit" Click="ExitClicked" />
                 </MenuItem>
                 <MenuItem Header="Machine">
                     <MenuItem Header="_Reset Machine" Click="ResetMachineClicked" />

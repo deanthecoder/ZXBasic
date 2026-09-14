@@ -13,6 +13,8 @@ using System.Text;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using DTC.Core.Extensions;
 using DTC.Core.UI;
@@ -193,6 +195,11 @@ public partial class MainWindow : Window
         Terminal.Focus();
     }
 
+    private void ExitClicked(object? sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
     private void OpenProjectPageClicked(object? sender, RoutedEventArgs e)
     {
         new Uri("https://github.com/deanthecoder/ZXBasic").Open();
@@ -208,9 +215,10 @@ public partial class MainWindow : Window
             Version = assembly?.GetName().Version?.ToString(3) ?? "0.1",
             Copyright = "Copyright (c) 2026 Dean Edis",
             WebsiteUrl = "https://github.com/deanthecoder/ZXBasic",
-            Icon = Terminal.Frame
+            Icon = new Bitmap(AssetLoader.Open(new Uri("avares://ZXBasic/App.ico")))
         })
         {
+            Icon = Icon,
             ShowInTaskbar = false
         };
         await dialog.ShowDialog(this);

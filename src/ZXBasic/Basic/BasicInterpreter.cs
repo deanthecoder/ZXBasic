@@ -139,10 +139,6 @@ public sealed class BasicInterpreter
                     }
                 }
             }
-            catch (BasicRuntimeException)
-            {
-                throw;
-            }
             catch (OperationCanceledException)
             {
                 throw RuntimeError("BREAK", instruction);
@@ -294,11 +290,11 @@ public sealed class BasicInterpreter
         switch (tokens[0].Keyword)
         {
             case BasicKeyword.GoTo:
-                programCounter = GetTargetPosition(tokens.Skip(1).ToArray(), linePositions, instruction);
+                programCounter = GetTargetPosition([.. tokens.Skip(1)], linePositions, instruction);
                 return BasicStatementResult.Continue;
             case BasicKeyword.GoSub:
                 calls.Push(programCounter + 1);
-                programCounter = GetTargetPosition(tokens.Skip(1).ToArray(), linePositions, instruction);
+                programCounter = GetTargetPosition([.. tokens.Skip(1)], linePositions, instruction);
                 return BasicStatementResult.Continue;
             case BasicKeyword.Return:
                 if (calls.Count == 0)
@@ -384,7 +380,7 @@ public sealed class BasicInterpreter
     {
         var targetPosition = instruction.Tokens.Count == 1
             ? 0
-            : GetTargetPosition(instruction.Tokens.Skip(1).ToArray(), linePositions, instruction);
+            : GetTargetPosition([.. instruction.Tokens.Skip(1)], linePositions, instruction);
 
         m_statementExecutor.Runtime.ResetForRun();
         RegisterFunctions(instructions);
@@ -474,7 +470,7 @@ public sealed class BasicInterpreter
         return linePositions[targetLineNumber];
     }
 
-    private int FindAfterMatchingNext(
+    private static int FindAfterMatchingNext(
         IReadOnlyList<Instruction> instructions,
         int forPosition,
         string variable)
@@ -503,7 +499,7 @@ public sealed class BasicInterpreter
 
     private double Evaluate(IReadOnlyList<BasicToken> tokens, int start, int end)
     {
-        return m_expressionEvaluator.Evaluate(tokens.Skip(start).Take(end - start).ToArray());
+        return m_expressionEvaluator.Evaluate([.. tokens.Skip(start).Take(end - start)]);
     }
 
     private int[] EvaluateArguments(IReadOnlyList<BasicToken> tokens, int start, int end)
@@ -530,7 +526,7 @@ public sealed class BasicInterpreter
             values.Add(checked((int)Math.Round(Evaluate(tokens, argumentStart, i), MidpointRounding.AwayFromZero)));
             argumentStart = i + 1;
         }
-        return values.ToArray();
+        return [.. values];
     }
 
     private static int FindKeyword(IReadOnlyList<BasicToken> tokens, BasicKeyword keyword, int start)
@@ -562,9 +558,7 @@ public sealed class BasicInterpreter
 
     private static IEnumerable<IReadOnlyList<BasicToken>> ExpandNextStatement(IReadOnlyList<BasicToken> tokens)
     {
-        if (tokens.Count < 4 || tokens[0].Keyword != BasicKeyword.Next ||
-            !tokens.Skip(1).Where((_, index) => index % 2 == 0).All(token => token.Kind == BasicTokenKind.Identifier) ||
-            !tokens.Skip(2).Where((_, index) => index % 2 == 0).All(token => token.Text == ","))
+        if (tokens.Count < 4 || tokens[0].Keyword != BasicKeyword.Next || tokens.Skip(1).Where((_, index) => index % 2 == 0).Any(token => token.Kind != BasicTokenKind.Identifier) || tokens.Skip(2).Where((_, index) => index % 2 == 0).Any(token => token.Text != ","))
         {
             yield return tokens;
             yield break;
@@ -572,7 +566,7 @@ public sealed class BasicInterpreter
 
         for (var i = 1; i < tokens.Count; i += 2)
         {
-            yield return new[] { tokens[0], tokens[i] };
+            yield return [tokens[0], tokens[i]];
         }
     }
 
@@ -651,7 +645,7 @@ public sealed class BasicInterpreter
         return new BasicUserFunction(
             tokens[1].Text,
             parameters,
-            tokens.Skip(closeParenthesis + 2).ToArray());
+            [.. tokens.Skip(closeParenthesis + 2)]);
     }
 
     private static IReadOnlyList<IReadOnlyList<BasicToken>> SplitStatements(IReadOnlyList<BasicToken> tokens)
@@ -662,10 +656,10 @@ public sealed class BasicInterpreter
         {
             if (tokens[i] is not { Kind: BasicTokenKind.Separator, Text: ":" })
                 continue;
-            statements.Add(tokens.Skip(start).Take(i - start).ToArray());
+            statements.Add([.. tokens.Skip(start).Take(i - start)]);
             start = i + 1;
         }
-        statements.Add(tokens.Skip(start).ToArray());
+        statements.Add([.. tokens.Skip(start)]);
         return statements;
     }
 
