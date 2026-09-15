@@ -12,11 +12,12 @@
         Icon="/App.ico"
         Title="DeanTheCoder ZXBasic">
     <Grid RowDefinitions="Auto,*">
-        <Grid ColumnDefinitions="*,Auto,Auto" Background="#212121">
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto" Background="#212121">
             <Menu Background="Transparent">
                 <MenuItem Header="File">
                     <MenuItem Header="_Open..." InputGesture="{OnPlatform 'Ctrl+O', macOS='⌘+O'}" Click="OpenClicked" />
-                    <MenuItem Header="_Save BASIC As..." InputGesture="{OnPlatform 'Ctrl+S', macOS='⌘+S'}" Click="SaveClicked" />
+                    <MenuItem Header="_Save..." InputGesture="{OnPlatform 'Ctrl+S', macOS='⌘+S'}" Click="SaveClicked" />
+                    <MenuItem Header="Save Screenshot..." Click="SaveScreenshotClicked" />
                     <MenuItem Header="E_xit" Click="ExitClicked" />
                 </MenuItem>
                 <MenuItem Header="Machine">
@@ -45,8 +46,21 @@
                 <icons:MaterialIcon x:Name="SpeedIcon" Width="24" Height="24" Kind="Walk" />
             </Button>
 
-            <Grid Grid.Column="2"
-                  Margin="24,0,8,0"
+            <icons:MaterialIcon x:Name="KeyboardIcon"
+                                Grid.Column="2"
+                                Width="30"
+                                Height="30"
+                                Margin="16,0"
+                                VerticalAlignment="Center"
+                                Foreground="White"
+                                Background="Transparent"
+                                Kind="KeyboardVariant"
+                                ToolTip.Tip="Spectrum keyboard"
+                                PointerEntered="KeyboardIconPointerEntered"
+                                PointerExited="KeyboardIconPointerExited" />
+
+            <Grid Grid.Column="3"
+                  Margin="16,0,8,0"
                   RenderTransformOrigin="0.5,0.5"
                   ColumnDefinitions="10,10,10,10">
                 <Grid.RenderTransform>
@@ -71,7 +85,8 @@
                 </Image.Effect>
             </Image>
 
-            <Viewbox Stretch="Uniform"
+            <Viewbox x:Name="DisplayViewbox"
+                     Stretch="Uniform"
                      RenderOptions.BitmapInterpolationMode="HighQuality">
                 <Panel Width="320" Height="240">
                     <controls:SpectrumTerminal x:Name="Terminal" />
@@ -87,6 +102,24 @@
                     </Image>
                 </Panel>
             </Viewbox>
+
+            <Image x:Name="Keyboard"
+                   VerticalAlignment="Top"
+                   IsVisible="False"
+                   IsHitTestVisible="False"
+                   Opacity="0"
+                   MaxWidth="1024"
+                   Source="/Assets/Keyboard.png"
+                   Margin="24">
+                <Image.Effect>
+                    <DropShadowEffect OffsetX="4" OffsetY="4" BlurRadius="10" />
+                </Image.Effect>
+                <Image.Transitions>
+                    <Transitions>
+                        <DoubleTransition Property="Opacity" Duration="0:0:0.25" />
+                    </Transitions>
+                </Image.Transitions>
+            </Image>
         </Grid>
     </Grid>
 </Window>

@@ -15,6 +15,21 @@ namespace ZXBasic.Tests;
 public class BasicProgramTests
 {
     [Test]
+    public void IncludedExamplesAreValidListings()
+    {
+        var examplesDirectory = Path.GetFullPath(
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "Examples"));
+
+        foreach (var path in Directory.EnumerateFiles(examplesDirectory, "*.bas", SearchOption.AllDirectories))
+        {
+            Assert.That(
+                () => new BasicProgram().EnterListing(File.ReadAllText(path)),
+                Throws.Nothing,
+                $"Invalid example listing: {Path.GetFileName(path)}");
+        }
+    }
+
+    [Test]
     public void ListsLinesInNumberOrder()
     {
         var program = new BasicProgram();
@@ -212,6 +227,23 @@ public class BasicProgramTests
         {
             Assert.That(offset, Is.EqualTo(27));
             Assert.That(program.GetListing(), Has.Count.EqualTo(30));
+        });
+    }
+
+    [Test]
+    public void AutomaticListingLetsTheMarkerReachOneThirdDownBeforeScrolling()
+    {
+        var program = new BasicProgram();
+        for (var lineNumber = 10; lineNumber <= 300; lineNumber += 10)
+        {
+            program.Enter($"{lineNumber} REM LINE {lineNumber}");
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(program.GetAutomaticListingLineOffset(10, columns: 32, rows: 12), Is.Zero);
+            Assert.That(program.GetAutomaticListingLineOffset(50, columns: 32, rows: 12), Is.Zero);
+            Assert.That(program.GetAutomaticListingLineOffset(60, columns: 32, rows: 12), Is.EqualTo(1));
         });
     }
 

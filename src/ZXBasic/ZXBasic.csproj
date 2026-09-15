@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <AvaloniaResource Include="App.ico" />
+    <AvaloniaResource Include="Assets\Keyboard.png" />
   </ItemGroup>
 
   <ItemGroup>

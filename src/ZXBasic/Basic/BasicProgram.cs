@@ -238,6 +238,16 @@ public sealed class BasicProgram
         var start = anchor;
         var end = anchor;
         var usedRows = entries[anchor].RequiredRows;
+        var targetRowsBeforeCurrentLine = rows / 3;
+        var rowsBeforeCurrentLine = 0;
+        while (start > 0 &&
+               rowsBeforeCurrentLine + entries[start - 1].RequiredRows <= targetRowsBeforeCurrentLine &&
+               usedRows + entries[start - 1].RequiredRows <= rows)
+        {
+            rowsBeforeCurrentLine += entries[--start].RequiredRows;
+            usedRows += entries[start].RequiredRows;
+        }
+
         while (end + 1 < entries.Length && usedRows + entries[end + 1].RequiredRows <= rows)
         {
             usedRows += entries[++end].RequiredRows;

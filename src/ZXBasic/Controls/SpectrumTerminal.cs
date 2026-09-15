@@ -65,6 +65,29 @@ public sealed class SpectrumTerminal : Control
     public WriteableBitmap CrtFrame => m_crtFrame;
     public bool IsRunning => m_isRunning;
 
+    public void SaveScreenshot(Stream stream)
+    {
+        if (!m_isCrtEnabled)
+        {
+            m_frame.Save(stream);
+            return;
+        }
+
+        using var screenshot = new RenderTargetBitmap(GetScreenshotPixelSize(m_crtFrame.PixelSize, true));
+        using (var context = screenshot.CreateDrawingContext())
+        {
+            context.DrawImage(m_crtFrame, new Rect(screenshot.Size));
+        }
+        screenshot.Save(stream);
+    }
+
+    internal static PixelSize GetScreenshotPixelSize(PixelSize frameSize, bool isCrtEnabled)
+    {
+        return isCrtEnabled
+            ? new PixelSize(frameSize.Width, frameSize.Height * 3 / 4)
+            : frameSize;
+    }
+
     public bool IsCrtEnabled
     {
         get => m_isCrtEnabled;
@@ -216,7 +239,12 @@ public sealed class SpectrumTerminal : Control
     {
         RenderOptions.SetBitmapInterpolationMode(
             this,
-            m_isCrtEnabled ? BitmapInterpolationMode.HighQuality : BitmapInterpolationMode.None);
+            GetDisplayInterpolationMode(m_isCrtEnabled));
+    }
+
+    internal static BitmapInterpolationMode GetDisplayInterpolationMode(bool isCrtEnabled)
+    {
+        return isCrtEnabled ? BitmapInterpolationMode.HighQuality : BitmapInterpolationMode.LowQuality;
     }
 
     public override void Render(DrawingContext context)
@@ -259,13 +287,7 @@ public sealed class SpectrumTerminal : Control
             return;
         }
 
-        m_input = source;
-        m_cursor = source.Length;
-        m_selectedLineNumber = lineNumber;
-        m_hasStarted = true;
-        m_hasError = false;
-        m_isPaused = false;
-        ShowCursor();
+        EditProgramLine(lineNumber, source);
         e.Handled = true;
     }
 
@@ -420,11 +442,7 @@ public sealed class SpectrumTerminal : Control
 
         if (m_isPaused)
         {
-            m_isPaused = false;
-            m_preserveProgramScreen = false;
-            ShowCursor();
-            e.Handled = true;
-            return;
+            ReturnToEditor();
         }
 
         InsertText(characters);
@@ -472,36 +490,29 @@ public sealed class SpectrumTerminal : Control
             return;
         }
 
+        if (m_isPaused)
+        {
+            ReturnToEditor();
+            if (ShouldConsumeReportDismissalKey(e.Key))
+            {
+                e.Handled = true;
+                return;
+            }
+        }
+
         if (e.Key == Key.Escape)
         {
             m_input = string.Empty;
             m_cursor = 0;
             m_hasError = false;
-            m_isPaused = false;
-            m_preserveProgramScreen = false;
-            ShowCursor();
+            ReturnToEditor();
             e.Handled = true;
             return;
         }
 
         if (IsPasteGesture(e))
         {
-            if (m_isPaused)
-            {
-                m_isPaused = false;
-                m_preserveProgramScreen = false;
-            }
-
             PasteClipboard();
-            e.Handled = true;
-            return;
-        }
-
-        if (m_isPaused)
-        {
-            m_isPaused = false;
-            m_preserveProgramScreen = false;
-            ShowCursor();
             e.Handled = true;
             return;
         }
@@ -525,6 +536,12 @@ public sealed class SpectrumTerminal : Control
             case Key.Right:
                 m_cursor = Math.Min(m_input.Length, m_cursor + 1);
                 break;
+            case Key.Up:
+                MoveSelectedListingLine(-1);
+                break;
+            case Key.Down:
+                MoveSelectedListingLine(1);
+                break;
             case Key.Home:
                 m_cursor = 0;
                 break;
@@ -537,6 +554,18 @@ public sealed class SpectrumTerminal : Control
 
         ShowCursor();
         e.Handled = true;
+    }
+
+    private void ReturnToEditor()
+    {
+        m_isPaused = false;
+        m_preserveProgramScreen = false;
+        ShowCursor();
+    }
+
+    internal static bool ShouldConsumeReportDismissalKey(Key key)
+    {
+        return key is Key.Enter or Key.Escape;
     }
 
     protected override void OnKeyUp(KeyEventArgs e)
@@ -642,6 +671,11 @@ public sealed class SpectrumTerminal : Control
             return;
         }
 
+        if (string.IsNullOrWhiteSpace(m_input) && TryEditSelectedListingLine())
+        {
+            return;
+        }
+
         if (!BasicLineValidator.IsValid(m_input))
         {
             m_hasError = true;
@@ -697,59 +731,11 @@ public sealed class SpectrumTerminal : Control
             m_isPaused = false;
             SetOutputLines(m_program.GetListing());
         }
-        else if (input == "RUN" || input.StartsWith("RUN ", StringComparison.Ordinal))
+        else if (input == "CONTINUE" || input == "RUN" || input.StartsWith("RUN ", StringComparison.Ordinal))
         {
-            var startLineNumber = EvaluateOptionalLineNumber(input);
-            m_input = string.Empty;
-            m_cursor = 0;
-            m_hasError = false;
-            m_preserveProgramScreen = true;
-            m_isPaused = false;
-            m_isRunning = true;
-            var cancellation = new CancellationTokenSource();
-            m_runCancellation = cancellation;
-            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            m_runCompletion = completion;
-            m_statementExecutor.Runtime.ClearScreen();
-            RefreshFrame();
-            try
-            {
-                var result = await m_interpreter.RunAsync(
-                    m_program,
-                    RefreshFrame,
-                    cancellation.Token,
-                    startLineNumber,
-                    ReadInputAsync,
-                    WaitForPauseAsync);
-                m_isPaused = result.IsPaused;
-                if (!result.IsPaused)
-                {
-                    WriteReport($"0 OK, {result.LineNumber}:{result.StatementNumber}");
-                    m_isPaused = true;
-                }
-            }
-            catch (BasicRuntimeException exception)
-            {
-                m_isPaused = false;
-                WriteRuntimeReport(exception);
-            }
-            finally
-            {
-                m_runCancellation = null;
-                m_isRunning = false;
-                m_isAwaitingInput = false;
-                m_isWaitingForKey = false;
-                m_pendingInkey = string.Empty;
-                m_pendingInkeyKey = null;
-                cancellation.Dispose();
-                completion.TrySetResult();
-                if (ReferenceEquals(m_runCompletion, completion))
-                {
-                    m_runCompletion = null;
-                }
-
-                RefreshFrame();
-            }
+            var continueExecution = input == "CONTINUE";
+            var startLineNumber = continueExecution ? null : EvaluateOptionalLineNumber(input);
+            await RunProgramAsync(startLineNumber, continueExecution);
         }
         else
         {
@@ -790,6 +776,98 @@ public sealed class SpectrumTerminal : Control
         m_input = string.Empty;
         m_cursor = 0;
         m_hasError = false;
+        ShowCursor();
+    }
+
+    private async Task RunProgramAsync(int? startLineNumber, bool continueExecution)
+    {
+        m_input = string.Empty;
+        m_cursor = 0;
+        m_hasError = false;
+        m_preserveProgramScreen = true;
+        m_isPaused = false;
+        m_isRunning = true;
+        var cancellation = new CancellationTokenSource();
+        m_runCancellation = cancellation;
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        m_runCompletion = completion;
+        if (!continueExecution)
+        {
+            m_statementExecutor.Runtime.ClearScreen();
+        }
+        RefreshFrame();
+        try
+        {
+            var result = continueExecution
+                ? await m_interpreter.ContinueAsync(
+                    m_program,
+                    RefreshFrame,
+                    cancellation.Token,
+                    ReadInputAsync,
+                    WaitForPauseAsync)
+                : await m_interpreter.RunAsync(
+                    m_program,
+                    RefreshFrame,
+                    cancellation.Token,
+                    startLineNumber,
+                    ReadInputAsync,
+                    WaitForPauseAsync);
+            m_isPaused = result.IsPaused;
+            if (!result.IsPaused)
+            {
+                WriteReport($"0 OK, {result.LineNumber}:{result.StatementNumber}");
+                m_isPaused = true;
+            }
+        }
+        catch (BasicRuntimeException exception)
+        {
+            m_isPaused = false;
+            WriteRuntimeReport(exception);
+        }
+        finally
+        {
+            m_runCancellation = null;
+            m_isRunning = false;
+            m_isAwaitingInput = false;
+            m_isWaitingForKey = false;
+            m_pendingInkey = string.Empty;
+            m_pendingInkeyKey = null;
+            cancellation.Dispose();
+            completion.TrySetResult();
+            if (ReferenceEquals(m_runCompletion, completion))
+            {
+                m_runCompletion = null;
+            }
+
+            RefreshFrame();
+        }
+    }
+
+    private bool TryEditSelectedListingLine()
+    {
+        if (m_selectedLineNumber == null)
+        {
+            return false;
+        }
+
+        var source = m_program.GetSourceLine(m_selectedLineNumber.Value);
+        if (source == null || !m_outputLines.Contains(source))
+        {
+            return false;
+        }
+
+        EditProgramLine(m_selectedLineNumber.Value, source);
+        return true;
+    }
+
+    private void EditProgramLine(int lineNumber, string source)
+    {
+        m_input = source;
+        m_cursor = source.Length;
+        m_selectedLineNumber = lineNumber;
+        m_hasStarted = true;
+        m_hasError = false;
+        m_isPaused = false;
         ShowCursor();
     }
 
@@ -986,6 +1064,52 @@ public sealed class SpectrumTerminal : Control
             SpectrumScreen.Rows - 2);
         SetOutputLines(m_program.GetListing());
         m_outputLineOffset = lineOffset;
+    }
+
+    private void MoveSelectedListingLine(int direction)
+    {
+        var lineNumbers = m_program.Lines.Select(line => line.Number).ToArray();
+        var lineNumber = GetAdjacentListingLineNumber(lineNumbers, m_selectedLineNumber, direction);
+        if (lineNumber == null)
+        {
+            return;
+        }
+
+        m_selectedLineNumber = lineNumber;
+        ShowAutomaticListing(lineNumber.Value);
+    }
+
+    internal static int? GetAdjacentListingLineNumber(
+        IReadOnlyList<int> lineNumbers,
+        int? selectedLineNumber,
+        int direction)
+    {
+        if (lineNumbers.Count == 0)
+        {
+            return null;
+        }
+
+        if (selectedLineNumber == null)
+        {
+            return direction < 0 ? lineNumbers[^1] : lineNumbers[0];
+        }
+
+        var selectedIndex = -1;
+        for (var index = 0; index < lineNumbers.Count; index++)
+        {
+            if (lineNumbers[index] == selectedLineNumber.Value)
+            {
+                selectedIndex = index;
+                break;
+            }
+        }
+        if (selectedIndex < 0)
+        {
+            return direction < 0 ? lineNumbers[^1] : lineNumbers[0];
+        }
+
+        var adjacentIndex = Math.Clamp(selectedIndex + Math.Sign(direction), 0, lineNumbers.Count - 1);
+        return lineNumbers[adjacentIndex];
     }
 
     private void ShowLoadedProgram()

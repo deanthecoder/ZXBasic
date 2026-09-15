@@ -9,6 +9,8 @@
 // THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND.
 
 using Avalonia;
+using Avalonia.Input;
+using Avalonia.Media.Imaging;
 using ZXBasic.Controls;
 using ZXBasic.Emulation;
 
@@ -44,5 +46,70 @@ public class SpectrumTerminalTests
             bounds);
 
         Assert.That(coordinate, Is.Null);
+    }
+
+    [Test]
+    public void ScreenshotPreservesTheDisplayedAspectRatio()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                SpectrumTerminal.GetScreenshotPixelSize(new PixelSize(320, 240), false),
+                Is.EqualTo(new PixelSize(320, 240)));
+            Assert.That(
+                SpectrumTerminal.GetScreenshotPixelSize(new PixelSize(960, 960), true),
+                Is.EqualTo(new PixelSize(960, 720)));
+        });
+    }
+
+    [Test]
+    public void CrtControlsDisplayInterpolationAtEveryScalingStage()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                SpectrumTerminal.GetDisplayInterpolationMode(true),
+                Is.EqualTo(BitmapInterpolationMode.HighQuality));
+            Assert.That(
+                SpectrumTerminal.GetDisplayInterpolationMode(false),
+                Is.EqualTo(BitmapInterpolationMode.LowQuality));
+        });
+    }
+
+    [Test]
+    public void ListingMarkerMovesToAdjacentProgramLines()
+    {
+        int[] lineNumbers = [10, 30, 100];
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(SpectrumTerminal.GetAdjacentListingLineNumber(lineNumbers, 30, -1), Is.EqualTo(10));
+            Assert.That(SpectrumTerminal.GetAdjacentListingLineNumber(lineNumbers, 30, 1), Is.EqualTo(100));
+            Assert.That(SpectrumTerminal.GetAdjacentListingLineNumber(lineNumbers, 10, -1), Is.EqualTo(10));
+            Assert.That(SpectrumTerminal.GetAdjacentListingLineNumber(lineNumbers, 100, 1), Is.EqualTo(100));
+        });
+    }
+
+    [Test]
+    public void ListingMarkerStartsAtTheEndMatchingTheArrowDirection()
+    {
+        int[] lineNumbers = [10, 30, 100];
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(SpectrumTerminal.GetAdjacentListingLineNumber(lineNumbers, null, -1), Is.EqualTo(100));
+            Assert.That(SpectrumTerminal.GetAdjacentListingLineNumber(lineNumbers, null, 1), Is.EqualTo(10));
+            Assert.That(SpectrumTerminal.GetAdjacentListingLineNumber([], null, 1), Is.Null);
+        });
+    }
+
+    [TestCase(Key.Enter, true)]
+    [TestCase(Key.Escape, true)]
+    [TestCase(Key.A, false)]
+    [TestCase(Key.Up, false)]
+    [TestCase(Key.Back, false)]
+    public void ReportDismissalConsumesOnlyEnterAndEscape(Key key, bool expected)
+    {
+        Assert.That(SpectrumTerminal.ShouldConsumeReportDismissalKey(key), Is.EqualTo(expected));
     }
 }

@@ -13,20 +13,21 @@ using System.Text;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
+using DTC.Core.Commands;
 using DTC.Core.Extensions;
 using DTC.Core.UI;
 using Material.Icons;
 using ZXBasic.Basic;
+using ZXBasic.Controls;
 
 namespace ZXBasic;
 
 public partial class MainWindow : Window
 {
-    private static readonly FilePickerFileType BasicFiles = new("BASIC listings") { Patterns = ["*.bas"] };
-    private static readonly FilePickerFileType SnapshotFiles = new("Spectrum snapshots") { Patterns = ["*.sna"] };
     private BasicExecutionSpeed m_executionSpeed = BasicExecutionSpeed.Spectrum;
     private bool m_isCrtEnabled = true;
 
@@ -96,67 +97,86 @@ public partial class MainWindow : Window
     private void ToggleCrtClicked(object? sender, RoutedEventArgs e)
     {
         m_isCrtEnabled = !m_isCrtEnabled;
+        RenderOptions.SetBitmapInterpolationMode(
+            DisplayViewbox,
+            SpectrumTerminal.GetDisplayInterpolationMode(m_isCrtEnabled));
         Terminal.IsCrtEnabled = m_isCrtEnabled;
         CrtOverlay.IsVisible = m_isCrtEnabled;
         AmbientDisplay.IsVisible = m_isCrtEnabled;
         CrtCheckIcon.IsVisible = m_isCrtEnabled;
+        DisplayViewbox.InvalidateVisual();
         Terminal.Focus();
     }
 
-    private async void OpenClicked(object? sender, RoutedEventArgs e)
+    private void KeyboardIconPointerEntered(object? sender, PointerEventArgs e)
     {
-        await OpenFileAsync();
+        Keyboard.IsVisible = true;
+        Keyboard.Opacity = 1;
     }
 
-    private async void OpenFile()
+    private void KeyboardIconPointerExited(object? sender, PointerEventArgs e)
     {
-        await OpenFileAsync();
+        Keyboard.Opacity = 0;
     }
 
-    private async Task OpenFileAsync()
+    private void OpenClicked(object? sender, RoutedEventArgs e)
     {
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        OpenFile();
+    }
+
+    private void OpenFile()
+    {
+        var command = new FileOpenCommand(
+            "Open BASIC Program",
+            "BASIC programs",
+            ["*.bas", "*.sna"]);
+        command.FileSelected += async (_, file) =>
         {
-            Title = "Open BASIC Program",
-            AllowMultiple = false,
-            FileTypeFilter = [BasicFiles, SnapshotFiles]
-        });
-        if (files.Count == 1)
-        {
-            await LoadFileAsync(files[0]);
-        }
-
-        Terminal.Focus();
+            await LoadFileAsync(file);
+            Terminal.Focus();
+        };
+        command.Cancelled += (_, _) => Terminal.Focus();
+        command.Execute(this);
     }
 
-    private async void SaveClicked(object? sender, RoutedEventArgs e)
+    private void SaveClicked(object? sender, RoutedEventArgs e)
     {
-        await SaveFileAsync();
+        SaveFile();
     }
 
-    private async void SaveFile()
+    private void SaveFile()
     {
-        await SaveFileAsync();
-    }
-
-    private async Task SaveFileAsync()
-    {
-        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        var command = new FileSaveCommand(
+            "Save BASIC Program",
+            "BASIC listings",
+            ["*.bas"],
+            "program.bas");
+        command.FileSelected += async (_, file) =>
         {
-            Title = "Save BASIC Program",
-            SuggestedFileName = "program.bas",
-            DefaultExtension = "bas",
-            FileTypeChoices = [BasicFiles]
-        });
-        if (file != null)
-        {
-            await using var stream = await file.OpenWriteAsync();
-            stream.SetLength(0);
+            await using var stream = file.Open(FileMode.Create, FileAccess.Write, FileShare.None);
             await using var writer = new StreamWriter(stream, new UTF8Encoding(false));
             await writer.WriteAsync(Terminal.GetListingText());
-        }
+            Terminal.Focus();
+        };
+        command.Cancelled += (_, _) => Terminal.Focus();
+        command.Execute(this);
+    }
 
-        Terminal.Focus();
+    private void SaveScreenshotClicked(object? sender, RoutedEventArgs e)
+    {
+        var command = new FileSaveCommand(
+            "Save Screenshot",
+            "PNG images",
+            ["*.png"],
+            "zxbasic-screenshot.png");
+        command.FileSelected += (_, file) =>
+        {
+            using var stream = file.Open(FileMode.Create, FileAccess.Write, FileShare.None);
+            Terminal.SaveScreenshot(stream);
+            Terminal.Focus();
+        };
+        command.Cancelled += (_, _) => Terminal.Focus();
+        command.Execute(this);
     }
 
     private async void FileDropped(object? sender, DragEventArgs e)
@@ -170,11 +190,23 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task LoadFileAsync(FileInfo file)
+    {
+        await Terminal.StopExecutionAsync();
+        await using var stream = file.OpenRead();
+        await LoadFileAsync(stream, file.Extension);
+    }
+
     private async Task LoadFileAsync(IStorageFile file)
     {
         await Terminal.StopExecutionAsync();
         await using var stream = await file.OpenReadAsync();
-        if (Path.GetExtension(file.Name).Equals(".sna", StringComparison.OrdinalIgnoreCase))
+        await LoadFileAsync(stream, Path.GetExtension(file.Name));
+    }
+
+    private async Task LoadFileAsync(Stream stream, string extension)
+    {
+        if (extension.Equals(".sna", StringComparison.OrdinalIgnoreCase))
         {
             using var memory = new MemoryStream();
             await stream.CopyToAsync(memory);
