@@ -2,9 +2,11 @@
 
 # ZXBasic
 
-**Sinclair BASIC for a modern desktop.**
+**The ZX Spectrum BASIC experience, recreated.**
 
-ZXBasic brings the ZX Spectrum's programming environment to a modern desktop. Write a few lines, enter `RUN`, and see the result on a 256×192 display, complete with color clash and an optional CRT effect.
+ZXBasic recreates the look and feel of programming a real ZX Spectrum: a 256×192 display, Spectrum colors, color clash, and an optional phosphor CRT effect. Write a few lines, enter `RUN`, and watch them come to life—without giving up the convenience of a modern keyboard.
+
+![ZXBasic editor displaying a BASIC program with the phosphor CRT effect](img/ZXBasic.png)
 
 <table>
   <tr>
