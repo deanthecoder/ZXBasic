@@ -1,0 +1,25 @@
+{
+  "ProductName": "ZXBasic",
+  "CompanyName": "Dean Edis (DeanTheCoder)",
+  "PublisherUrl": "https://github.com/deanthecoder/ZXBasic",
+  "BundleIdentifier": "com.deanthecoder.zxbasic",
+  "Executable": "ZXBasic",
+  "Project": "src/ZXBasic/ZXBasic.csproj",
+  "Version": "0.1",
+  "Win": {
+    "InnoScript": "Installer/templates/inno.iss",
+    "IconIco": "src/ZXBasic/App.ico",
+    "GUID": "{65EA7439-34D4-4897-BAE8-FB138992EE24}",
+    "RuntimeIdentifier": "win-x64",
+    "InstallOpenAL": true,
+    "ShowRunOnStartupTask": false
+  },
+  "Mac": {
+    "RuntimeIdentifiers": [
+      "osx-arm64",
+      "osx-x64"
+    ],
+    "IconIcns": "src/ZXBasic/Assets/app.icns",
+    "InfoPlist": "Installer/templates/Info.plist"
+  }
+}
