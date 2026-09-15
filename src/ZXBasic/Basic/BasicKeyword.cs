@@ -10,7 +10,7 @@
 
 namespace ZXBasic.Basic;
 
-public enum BasicKeyword : byte
+public enum BasicKeyword : ushort
 {
     Rnd = 165,
     InkeyString,
@@ -102,5 +102,6 @@ public enum BasicKeyword : byte
     Draw,
     Clear,
     Return,
-    Copy
+    Copy,
+    Fill
 }

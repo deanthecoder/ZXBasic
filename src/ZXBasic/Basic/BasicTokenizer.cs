@@ -85,6 +85,7 @@ public static class BasicTokenizer
         ["POKE"] = BasicKeyword.Poke,
         ["PRINT"] = BasicKeyword.Print,
         ["PLOT"] = BasicKeyword.Plot,
+        ["FILL"] = BasicKeyword.Fill,
         ["RUN"] = BasicKeyword.Run,
         ["RANDOMIZE"] = BasicKeyword.Randomize,
         ["IF"] = BasicKeyword.If,

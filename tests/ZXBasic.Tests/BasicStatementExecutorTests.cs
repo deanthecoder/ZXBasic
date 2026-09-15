@@ -198,6 +198,57 @@ public class BasicStatementExecutorTests
     }
 
     [Test]
+    public void FillPaintsAnEnclosedAreaWithTemporaryAttributes()
+    {
+        var screen = new SpectrumScreen();
+        var executor = new BasicStatementExecutor(screen);
+        executor.ExecuteSequence(BasicTokenizer.Tokenize("PLOT 10,10:DRAW 4,0:DRAW 0,4:DRAW -4,0:DRAW 0,-4"));
+
+        executor.TryExecute(BasicTokenizer.Tokenize("FILL BRIGHT 1;INK 2;12,12"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(screen.IsPixelSet(12, 12), Is.True);
+            Assert.That(screen.IsPixelSet(9, 12), Is.False);
+            Assert.That(screen.GetAttribute(20, 1), Is.EqualTo(0x7A));
+        });
+    }
+
+    [TestCase("FILL INK 2;12,12")]
+    [TestCase("FILL PAPER 5;INK 2;12,12")]
+    public void FillPreservesEachCharacterPaperColor(string command)
+    {
+        var screen = new SpectrumScreen();
+        var executor = new BasicStatementExecutor(screen);
+        for (var x = 10; x <= 22; x++)
+        {
+            var paper = (byte)(x < 16 ? 4 : 1);
+            screen.Plot(x, 10, 0, paper);
+            screen.Plot(x, 14, 0, paper);
+        }
+        screen.DrawLine(10, 10, 10, 14, 0, 4);
+        screen.DrawLine(22, 10, 22, 14, 0, 1);
+        executor.TryExecute(BasicTokenizer.Tokenize("PAPER 6"));
+
+        executor.TryExecute(BasicTokenizer.Tokenize(command));
+
+        var pixels = new uint[SpectrumScreen.FrameWidth * SpectrumScreen.FrameHeight];
+        screen.Render(pixels);
+        var row = (SpectrumScreen.BorderY + SpectrumScreen.DrawingHeight - 1 - 12) * SpectrumScreen.FrameWidth;
+        Assert.Multiple(() =>
+        {
+            Assert.That(screen.IsPixelSet(12, 12), Is.True);
+            Assert.That(screen.IsPixelSet(20, 12), Is.True);
+            Assert.That(screen.GetAttribute(20, 1), Is.EqualTo((4 << 3) | 2));
+            Assert.That(screen.GetAttribute(20, 2), Is.EqualTo((1 << 3) | 2));
+            Assert.That(pixels[row + SpectrumScreen.BorderX + 12], Is.EqualTo(SpectrumPalette.Bgra[2]));
+            Assert.That(pixels[row + SpectrumScreen.BorderX + 20], Is.EqualTo(SpectrumPalette.Bgra[2]));
+            Assert.That(pixels[row + SpectrumScreen.BorderX + 9], Is.EqualTo(SpectrumPalette.Bgra[4]));
+            Assert.That(pixels[row + SpectrumScreen.BorderX + 23], Is.EqualTo(SpectrumPalette.Bgra[1]));
+        });
+    }
+
+    [Test]
     public void InverseErasesAndOverTogglesPlottedPixels()
     {
         var screen = new SpectrumScreen();
@@ -217,6 +268,23 @@ public class BasicStatementExecutorTests
             Assert.That(erased, Is.False);
             Assert.That(toggledOn, Is.True);
             Assert.That(screen.IsPixelSet(10, 20), Is.False);
+        });
+    }
+
+    [Test]
+    public void EraseDrawingItemClearsAPixelWithoutChangingItsAttribute()
+    {
+        var screen = new SpectrumScreen();
+        var executor = new BasicStatementExecutor(screen);
+        executor.TryExecute(BasicTokenizer.Tokenize("PLOT INK 2;BRIGHT 1;10,20"));
+        var attribute = screen.GetAttribute(19, 1);
+
+        executor.TryExecute(BasicTokenizer.Tokenize("PLOT ERASE;10,20"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(screen.IsPixelSet(10, 20), Is.False);
+            Assert.That(screen.GetAttribute(19, 1), Is.EqualTo(attribute));
         });
     }
 

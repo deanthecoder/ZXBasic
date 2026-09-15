@@ -12,11 +12,14 @@ namespace ZXBasic.Basic;
 
 public sealed class BasicInterpreter
 {
+    private const double SpectrumDrawingSpeedMultiplier = 8.0 / 3.0;
     private const int ThrottleStatementCount = 16;
     private const int ProgressCheckStatementCount = 16;
     private static readonly TimeSpan ProgressInterval = TimeSpan.FromMilliseconds(16);
     private readonly BasicStatementExecutor m_statementExecutor;
     private readonly BasicExpressionEvaluator m_expressionEvaluator;
+    private readonly Func<TimeSpan, CancellationToken, Task> m_delay;
+    private ContinueState? m_continueState;
 
     private int m_executionSpeed = (int)BasicExecutionSpeed.Unlimited;
 
@@ -27,14 +30,27 @@ public sealed class BasicInterpreter
     }
 
     public BasicInterpreter(BasicStatementExecutor statementExecutor)
+        : this(statementExecutor, Task.Delay)
+    {
+    }
+
+    internal BasicInterpreter(
+        BasicStatementExecutor statementExecutor,
+        Func<TimeSpan, CancellationToken, Task> delay)
     {
         m_statementExecutor = statementExecutor;
         m_expressionEvaluator = new BasicExpressionEvaluator(statementExecutor.Runtime);
+        m_delay = delay;
     }
 
     public BasicRunResult Run(BasicProgram program, int? startLineNumber = null)
     {
-        return RunCoreAsync(program, null, false, CancellationToken.None, startLineNumber).GetAwaiter().GetResult();
+        return RunCoreAsync(program, null, false, CancellationToken.None, startLineNumber, false).GetAwaiter().GetResult();
+    }
+
+    public BasicRunResult Continue(BasicProgram program)
+    {
+        return RunCoreAsync(program, null, false, CancellationToken.None, null, true).GetAwaiter().GetResult();
     }
 
     public Task<BasicRunResult> RunAsync(
@@ -46,7 +62,18 @@ public sealed class BasicInterpreter
         Func<int, CancellationToken, Task>? pauseProvider = null)
     {
         ArgumentNullException.ThrowIfNull(onProgress);
-        return RunCoreAsync(program, onProgress, true, cancellationToken, startLineNumber, inputProvider, pauseProvider);
+        return RunCoreAsync(program, onProgress, true, cancellationToken, startLineNumber, false, inputProvider, pauseProvider);
+    }
+
+    public Task<BasicRunResult> ContinueAsync(
+        BasicProgram program,
+        Action onProgress,
+        CancellationToken cancellationToken = default,
+        Func<string, CancellationToken, Task<string>>? inputProvider = null,
+        Func<int, CancellationToken, Task>? pauseProvider = null)
+    {
+        ArgumentNullException.ThrowIfNull(onProgress);
+        return RunCoreAsync(program, onProgress, true, cancellationToken, null, true, inputProvider, pauseProvider);
     }
 
     private async Task<BasicRunResult> RunCoreAsync(
@@ -55,33 +82,60 @@ public sealed class BasicInterpreter
         bool yieldForProgress,
         CancellationToken cancellationToken,
         int? startLineNumber,
+        bool continueExecution,
         Func<string, CancellationToken, Task<string>>? inputProvider = null,
         Func<int, CancellationToken, Task>? pauseProvider = null)
     {
-        m_statementExecutor.Runtime.ResetForRun();
-        var instructions = BuildInstructions(program);
-        RegisterFunctions(instructions);
-        RegisterData(instructions);
-        var linePositions = instructions
-            .Select((instruction, index) => (instruction.LineNumber, index))
-            .GroupBy(item => item.LineNumber)
-            .ToDictionary(group => group.Key, group => group.First().index);
-        var loops = new List<ForLoop>();
-        var calls = new Stack<int>();
-        var programCounter = 0;
-        if (startLineNumber.HasValue)
-        {
-            var targetPosition = FindTargetPosition(linePositions, startLineNumber.Value);
-            if (!targetPosition.HasValue)
-            {
-                throw new BasicRuntimeException("STATEMENT LOST", startLineNumber.Value, 1);
-            }
-
-            programCounter = targetPosition.Value;
-        }
-        var executedStatements = 0;
+        IReadOnlyList<Instruction> instructions;
+        IReadOnlyDictionary<int, int> linePositions;
+        List<ForLoop> loops;
+        Stack<int> calls;
+        int programCounter;
         var lastLineNumber = 0;
         var lastStatementNumber = 1;
+        if (continueExecution)
+        {
+            var state = m_continueState;
+            m_continueState = null;
+            if (state == null || !state.Listing.SequenceEqual(program.GetListing()))
+            {
+                throw new BasicRuntimeException("CONTINUE without STOP", 0, 1);
+            }
+
+            instructions = state.Instructions;
+            linePositions = state.LinePositions;
+            loops = state.Loops;
+            calls = state.Calls;
+            programCounter = state.ProgramCounter;
+            lastLineNumber = state.LineNumber;
+            lastStatementNumber = state.StatementNumber;
+        }
+        else
+        {
+            m_continueState = null;
+            m_statementExecutor.Runtime.ResetForRun();
+            instructions = BuildInstructions(program);
+            RegisterFunctions(instructions);
+            RegisterData(instructions);
+            linePositions = instructions
+                .Select((instruction, index) => (instruction.LineNumber, index))
+                .GroupBy(item => item.LineNumber)
+                .ToDictionary(group => group.Key, group => group.First().index);
+            loops = [];
+            calls = [];
+            programCounter = 0;
+            if (startLineNumber.HasValue)
+            {
+                var targetPosition = FindTargetPosition(linePositions, startLineNumber.Value);
+                if (!targetPosition.HasValue)
+                {
+                    throw new BasicRuntimeException("STATEMENT LOST", startLineNumber.Value, 1);
+                }
+
+                programCounter = targetPosition.Value;
+            }
+        }
+        var executedStatements = 0;
         var lastProgressAt = Environment.TickCount64;
         var hasReportedProgress = false;
         var executionPacer = new BasicExecutionPacer(ExecutionSpeed, 0, Environment.TickCount64);
@@ -107,11 +161,32 @@ public sealed class BasicInterpreter
                     continue;
                 }
 
-                var result = ExecuteInstruction(instruction, instructions, linePositions, loops, calls, ref programCounter);
+                var execution = await ExecuteInstructionAsync(
+                    instruction,
+                    instructions,
+                    linePositions,
+                    loops,
+                    calls,
+                    programCounter,
+                    yieldForProgress ? onProgress : null,
+                    cancellationToken);
+                var result = execution.Result;
+                programCounter = execution.ProgramCounter;
                 lastLineNumber = instruction.LineNumber;
                 lastStatementNumber = instruction.StatementNumber;
                 if (result.Flow == BasicStatementFlow.Stop)
+                {
+                    m_continueState = new ContinueState(
+                        program.GetListing(),
+                        instructions,
+                        linePositions,
+                        loops,
+                        calls,
+                        programCounter,
+                        lastLineNumber,
+                        lastStatementNumber);
                     return BasicRunResult.CompleteAt(lastLineNumber, lastStatementNumber);
+                }
                 if (result.Flow == BasicStatementFlow.Pause)
                 {
                     if (pauseProvider == null)
@@ -275,68 +350,91 @@ public sealed class BasicInterpreter
         }
     }
 
-    private BasicStatementResult ExecuteInstruction(
+    private async ValueTask<(BasicStatementResult Result, int ProgramCounter)> ExecuteInstructionAsync(
         Instruction instruction,
         IReadOnlyList<Instruction> instructions,
         IReadOnlyDictionary<int, int> linePositions,
         List<ForLoop> loops,
         Stack<int> calls,
-        ref int programCounter)
+        int programCounter,
+        Action? onProgress,
+        CancellationToken cancellationToken)
     {
         var tokens = instruction.Tokens;
         if (tokens.Count == 0)
+        {
             throw new BasicSyntaxException("Nonsense in BASIC", 0);
+        }
 
         switch (tokens[0].Keyword)
         {
             case BasicKeyword.GoTo:
                 programCounter = GetTargetPosition([.. tokens.Skip(1)], linePositions, instruction);
-                return BasicStatementResult.Continue;
+                return (BasicStatementResult.Continue, programCounter);
             case BasicKeyword.GoSub:
                 calls.Push(programCounter + 1);
                 programCounter = GetTargetPosition([.. tokens.Skip(1)], linePositions, instruction);
-                return BasicStatementResult.Continue;
+                return (BasicStatementResult.Continue, programCounter);
             case BasicKeyword.Return:
                 if (calls.Count == 0)
+                {
                     throw new BasicSyntaxException("RETURN without GO SUB", tokens[0].Position);
+                }
                 programCounter = calls.Pop();
-                return BasicStatementResult.Continue;
+                return (BasicStatementResult.Continue, programCounter);
             case BasicKeyword.Run:
-                ExecuteRun(instruction, instructions, linePositions, loops, calls, ref programCounter);
-                return BasicStatementResult.Continue;
+                ExecuteRun(instruction, instructions, linePositions, loops, calls, out programCounter);
+                return (BasicStatementResult.Continue, programCounter);
             case BasicKeyword.If:
-                return ExecuteIf(instruction, instructions, linePositions, loops, calls, ref programCounter);
+                return await ExecuteIfAsync(
+                    instruction,
+                    instructions,
+                    linePositions,
+                    loops,
+                    calls,
+                    programCounter,
+                    onProgress,
+                    cancellationToken);
             case BasicKeyword.For:
                 ExecuteFor(instruction, instructions, loops, ref programCounter);
-                return BasicStatementResult.Continue;
+                return (BasicStatementResult.Continue, programCounter);
             case BasicKeyword.Next:
                 ExecuteNext(instruction, loops, ref programCounter);
-                return BasicStatementResult.Continue;
+                return (BasicStatementResult.Continue, programCounter);
             case BasicKeyword.DefFn:
                 programCounter++;
-                return BasicStatementResult.Continue;
+                return (BasicStatementResult.Continue, programCounter);
             case BasicKeyword.Clear:
                 var clearResult = m_statementExecutor.Execute(tokens);
                 loops.Clear();
                 calls.Clear();
                 programCounter++;
-                return clearResult;
+                return (clearResult, programCounter);
         }
 
-        var result = m_statementExecutor.Execute(tokens);
+        var result = onProgress == null
+            ? m_statementExecutor.Execute(tokens)
+            : await m_statementExecutor.ExecuteAsync(
+                tokens,
+                (milliseconds, token) => PaceDrawingAsync(milliseconds, onProgress, token),
+                cancellationToken);
         if (!result.Handled)
+        {
             throw RuntimeError("Not implemented", instruction);
+        }
         programCounter++;
-        return result;
+        return (result, programCounter);
     }
 
-    private BasicStatementResult ExecuteIf(
+    private async ValueTask<(BasicStatementResult Result, int ProgramCounter)> ExecuteIfAsync(
         Instruction instruction,
         IReadOnlyList<Instruction> instructions,
         IReadOnlyDictionary<int, int> linePositions,
         List<ForLoop> loops,
         Stack<int> calls,
-        ref int programCounter)
+        int programCounter,
+        Action? onProgress,
+        CancellationToken cancellationToken)
     {
         var thenIndex = FindKeyword(instruction.Tokens, BasicKeyword.Then, 1);
         if (thenIndex < 0 || thenIndex == instruction.Tokens.Count - 1)
@@ -350,24 +448,43 @@ public sealed class BasicInterpreter
                 programCounter++;
             } while (programCounter < instructions.Count &&
                      instructions[programCounter].LineNumber == instruction.LineNumber);
-            return BasicStatementResult.Continue;
+            return (BasicStatementResult.Continue, programCounter);
         }
 
         var consequent = instruction.Tokens.Skip(thenIndex + 1).ToArray();
         if (consequent[0].Kind == BasicTokenKind.Number)
         {
             programCounter = GetTargetPosition(consequent, linePositions, instruction);
-            return BasicStatementResult.Continue;
+            return (BasicStatementResult.Continue, programCounter);
         }
 
         var consequentInstruction = instruction with { Tokens = consequent };
-        return ExecuteInstruction(
+        return await ExecuteInstructionAsync(
             consequentInstruction,
             instructions,
             linePositions,
             loops,
             calls,
-            ref programCounter);
+            programCounter,
+            onProgress,
+            cancellationToken);
+    }
+
+    private async ValueTask PaceDrawingAsync(
+        double spectrumMilliseconds,
+        Action onProgress,
+        CancellationToken cancellationToken)
+    {
+        var speed = ExecutionSpeed;
+        if (speed != BasicExecutionSpeed.Spectrum)
+        {
+            return;
+        }
+
+        onProgress();
+        await m_delay(
+            TimeSpan.FromMilliseconds(spectrumMilliseconds / SpectrumDrawingSpeedMultiplier),
+            cancellationToken);
     }
 
     private void ExecuteRun(
@@ -376,7 +493,7 @@ public sealed class BasicInterpreter
         IReadOnlyDictionary<int, int> linePositions,
         List<ForLoop> loops,
         Stack<int> calls,
-        ref int programCounter)
+        out int programCounter)
     {
         var targetPosition = instruction.Tokens.Count == 1
             ? 0
@@ -670,4 +787,13 @@ public sealed class BasicInterpreter
 
     private sealed record Instruction(int LineNumber, int StatementNumber, IReadOnlyList<BasicToken> Tokens);
     private sealed record ForLoop(string Variable, double Limit, double Step, int BodyPosition);
+    private sealed record ContinueState(
+        IReadOnlyList<string> Listing,
+        IReadOnlyList<Instruction> Instructions,
+        IReadOnlyDictionary<int, int> LinePositions,
+        List<ForLoop> Loops,
+        Stack<int> Calls,
+        int ProgramCounter,
+        int LineNumber,
+        int StatementNumber);
 }

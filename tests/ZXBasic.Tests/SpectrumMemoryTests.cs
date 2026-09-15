@@ -44,4 +44,53 @@ public class SpectrumMemoryTests
             Assert.That(memory.Peek(22528), Is.EqualTo(0x3a));
         });
     }
+
+    [Test]
+    public void FramesAdvancesAtFiftyHertzAndWrapsAtTwentyFourBits()
+    {
+        long timestamp = 1_000;
+        var memory = new SpectrumMemory(null, () => timestamp, 1_000, 50);
+
+        timestamp += 20;
+        var firstFrame = memory.Peek(SpectrumMemory.FramesAddress);
+        timestamp += 0xFFFFFF * 20L;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(firstFrame, Is.EqualTo(1));
+            Assert.That(memory.Peek(SpectrumMemory.FramesAddress), Is.EqualTo(0));
+            Assert.That(memory.Peek(SpectrumMemory.FramesAddress + 1), Is.EqualTo(0));
+            Assert.That(memory.Peek(SpectrumMemory.FramesAddress + 2), Is.EqualTo(0));
+        });
+    }
+
+    [TestCase(50, 60)]
+    [TestCase(60, 50)]
+    public void FramesUsesTheConfiguredVideoRate(int framesPerSecond, long ticksPerFrame)
+    {
+        long timestamp = 0;
+        var memory = new SpectrumMemory(null, () => timestamp, 3_000, framesPerSecond);
+
+        timestamp = ticksPerFrame;
+
+        Assert.That(memory.Peek(SpectrumMemory.FramesAddress), Is.EqualTo(1));
+    }
+
+    [Test]
+    public void FramesCanBeChangedWithPoke()
+    {
+        long timestamp = 0;
+        var memory = new SpectrumMemory(null, () => timestamp, 1_000, 50);
+
+        memory.Poke(SpectrumMemory.FramesAddress, 0xFE);
+        memory.Poke(SpectrumMemory.FramesAddress + 1, 0x12);
+        timestamp = 20;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(memory.Peek(SpectrumMemory.FramesAddress), Is.EqualTo(0xFF));
+            Assert.That(memory.Peek(SpectrumMemory.FramesAddress + 1), Is.EqualTo(0x12));
+            Assert.That(memory.Peek(SpectrumMemory.FramesAddress + 2), Is.EqualTo(0));
+        });
+    }
 }

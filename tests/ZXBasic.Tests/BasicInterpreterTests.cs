@@ -29,6 +29,72 @@ public class BasicInterpreterTests
     }
 
     [Test]
+    public void ContinueResumesAfterStopWithRuntimeAndControlFlowState()
+    {
+        var executor = new BasicStatementExecutor(new SpectrumScreen());
+        var interpreter = new BasicInterpreter(executor);
+        var program = new BasicProgram();
+        program.Enter("5 LET TOTAL=0");
+        program.Enter("10 FOR I=1 TO 2");
+        program.Enter("20 GO SUB 100");
+        program.Enter("30 NEXT I");
+        program.Enter("40 STOP");
+        program.Enter("100 LET TOTAL=TOTAL+I");
+        program.Enter("110 STOP");
+        program.Enter("120 RETURN");
+
+        var firstStop = interpreter.Run(program);
+        var secondStop = interpreter.Continue(program);
+        var finalStop = interpreter.Continue(program);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(firstStop, Is.EqualTo(BasicRunResult.CompleteAt(110, 1)));
+            Assert.That(secondStop, Is.EqualTo(BasicRunResult.CompleteAt(110, 1)));
+            Assert.That(finalStop, Is.EqualTo(BasicRunResult.CompleteAt(40, 1)));
+            Assert.That(executor.Runtime.GetVariable("TOTAL"), Is.EqualTo(3));
+        });
+    }
+
+    [Test]
+    public void ContinueWithoutAStoppedProgramReportsAnError()
+    {
+        var interpreter = new BasicInterpreter(new BasicStatementExecutor(new SpectrumScreen()));
+
+        var exception = Assert.Throws<BasicRuntimeException>(() => interpreter.Continue(new BasicProgram()));
+
+        Assert.That(exception!.Message, Is.EqualTo("CONTINUE without STOP"));
+    }
+
+    [Test]
+    public void ContinueRejectsAProgramChangedAfterStop()
+    {
+        var interpreter = new BasicInterpreter(new BasicStatementExecutor(new SpectrumScreen()));
+        var program = new BasicProgram();
+        program.Enter("10 STOP");
+        program.Enter("20 LET A=1");
+        interpreter.Run(program);
+        program.Enter("20 LET A=2");
+
+        var exception = Assert.Throws<BasicRuntimeException>(() => interpreter.Continue(program));
+
+        Assert.That(exception!.Message, Is.EqualTo("CONTINUE without STOP"));
+    }
+
+    [Test]
+    public void ContinueAfterAStopAtTheEndRetainsTheProgramLocation()
+    {
+        var interpreter = new BasicInterpreter(new BasicStatementExecutor(new SpectrumScreen()));
+        var program = new BasicProgram();
+        program.Enter("10 STOP");
+        interpreter.Run(program);
+
+        var result = interpreter.Continue(program);
+
+        Assert.That(result, Is.EqualTo(BasicRunResult.CompleteAt(10, 1)));
+    }
+
+    [Test]
     public void RunCanStartAtARequestedLineNumber()
     {
         var screen = new SpectrumScreen();
@@ -221,6 +287,107 @@ public class BasicInterpreterTests
     }
 
     [Test]
+    public async Task CircleIsDrawnProgressivelyAroundItsCircumference()
+    {
+        var screen = new SpectrumScreen();
+        var executor = new BasicStatementExecutor(screen);
+        var delays = new List<double>();
+        HashSet<(int X, int Y)>? firstFrame = null;
+        var interpreter = new BasicInterpreter(
+            executor,
+            (delay, _) =>
+            {
+                delays.Add(delay.TotalMilliseconds);
+                return Task.CompletedTask;
+            })
+        {
+            ExecutionSpeed = BasicExecutionSpeed.Spectrum
+        };
+        var program = new BasicProgram();
+        program.Enter("10 CIRCLE 50,50,30");
+        var drawnPixelCounts = new List<int>();
+
+        await interpreter.RunAsync(
+            program,
+            () =>
+            {
+                var pixels = GetDrawingPixels(screen);
+                firstFrame ??= pixels;
+                drawnPixelCounts.Add(pixels.Count);
+            });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(delays, Has.Count.GreaterThan(1));
+            Assert.That(delays.Sum(), Is.EqualTo(171.45).Within(0.01));
+            Assert.That(drawnPixelCounts, Has.Count.EqualTo(delays.Count));
+            Assert.That(drawnPixelCounts[0], Is.LessThan(drawnPixelCounts[^1]));
+            Assert.That(firstFrame, Is.Not.Null);
+            Assert.That(firstFrame!, Has.All.Matches<(int X, int Y)>(point => point.X >= 50));
+        });
+    }
+
+    [Test]
+    public async Task HorizontalDrawUsesTheEstimatedSpectrumTiming()
+    {
+        var screen = new SpectrumScreen();
+        var executor = new BasicStatementExecutor(screen);
+        var delays = new List<double>();
+        var interpreter = new BasicInterpreter(
+            executor,
+            (delay, _) =>
+            {
+                delays.Add(delay.TotalMilliseconds);
+                return Task.CompletedTask;
+            })
+        {
+            ExecutionSpeed = BasicExecutionSpeed.Spectrum
+        };
+        var program = new BasicProgram();
+        program.Enter("10 PLOT 0,0");
+        program.Enter("20 DRAW 255,0");
+
+        await interpreter.RunAsync(program, () => { });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(delays, Has.Count.GreaterThan(2));
+            Assert.That(delays.Sum(), Is.EqualTo((7.27 + 55.16) * 3 / 8).Within(0.01));
+            Assert.That(screen.IsPixelSet(255, 0), Is.True);
+        });
+    }
+
+    [TestCase(BasicExecutionSpeed.Fast)]
+    [TestCase(BasicExecutionSpeed.Unlimited)]
+    public async Task FasterCircleModesAreImmediate(BasicExecutionSpeed speed)
+    {
+        var screen = new SpectrumScreen();
+        var executor = new BasicStatementExecutor(screen);
+        var delayCount = 0;
+        var interpreter = new BasicInterpreter(
+            executor,
+            (_, _) =>
+            {
+                delayCount++;
+                return Task.CompletedTask;
+            })
+        {
+            ExecutionSpeed = speed
+        };
+        var program = new BasicProgram();
+        program.Enter("10 CIRCLE 30,30,10");
+
+        await interpreter.RunAsync(program, () => { });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(delayCount, Is.Zero);
+            Assert.That(screen.IsPixelSet(40, 30), Is.True);
+            Assert.That(screen.IsPixelSet(30, 40), Is.True);
+        });
+    }
+
+    [Test]
     public void RunAsyncCanBeStoppedAtItsCurrentProgramLocation()
     {
         var program = new BasicProgram();
@@ -237,6 +404,22 @@ public class BasicInterpreterTests
             Assert.That(exception.LineNumber, Is.EqualTo(10));
             Assert.That(exception.StatementNumber, Is.EqualTo(1));
         });
+    }
+
+    private static HashSet<(int X, int Y)> GetDrawingPixels(SpectrumScreen screen)
+    {
+        var pixels = new HashSet<(int X, int Y)>();
+        for (var y = 0; y < SpectrumScreen.DrawingHeight; y++)
+        {
+            for (var x = 0; x < SpectrumScreen.Width; x++)
+            {
+                if (screen.IsPixelSet(x, y))
+                {
+                    pixels.Add((x, y));
+                }
+            }
+        }
+        return pixels;
     }
 
     [Test]

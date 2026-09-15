@@ -131,7 +131,8 @@ public sealed class SpectrumScreen
         bool bright = false,
         bool flash = false,
         bool inverse = false,
-        bool over = false)
+        bool over = false,
+        bool preserveAttributes = false)
     {
         if (x is < 0 or >= Width || y is < 0 or >= DrawingHeight)
             return;
@@ -152,7 +153,10 @@ public sealed class SpectrumScreen
             m_bitmap[byteIndex] |= mask;
         }
 
-        m_attributes[screenY / 8 * Columns + x / 8] = MakeAttribute(ink, paper, bright, flash);
+        if (!preserveAttributes)
+        {
+            m_attributes[screenY / 8 * Columns + x / 8] = MakeAttribute(ink, paper, bright, flash);
+        }
     }
 
     public bool IsPixelSet(int x, int y)
@@ -161,6 +165,63 @@ public sealed class SpectrumScreen
             return false;
         var screenY = DrawingHeight - 1 - y;
         return (m_bitmap[screenY * Columns + x / 8] & (0x80 >> (x & 7))) != 0;
+    }
+
+    public void FloodFill(
+        int x,
+        int y,
+        byte ink,
+        byte paper,
+        bool bright = false,
+        bool flash = false,
+        bool inverse = false,
+        bool over = false,
+        bool preserveAttributes = false)
+    {
+        if (x is < 0 or >= Width || y is < 0 or >= DrawingHeight)
+        {
+            return;
+        }
+
+        var target = IsPixelSet(x, y);
+        var replacement = over ? !target : !inverse;
+        if (target == replacement)
+        {
+            return;
+        }
+
+        var pending = new Queue<(int X, int Y)>();
+        FillPixel(x, y);
+        pending.Enqueue((x, y));
+
+        while (pending.TryDequeue(out var point))
+        {
+            TryAdd(point.X - 1, point.Y);
+            TryAdd(point.X + 1, point.Y);
+            TryAdd(point.X, point.Y - 1);
+            TryAdd(point.X, point.Y + 1);
+        }
+        return;
+
+        void TryAdd(int nextX, int nextY)
+        {
+            if (nextX is < 0 or >= Width || nextY is < 0 or >= DrawingHeight ||
+                IsPixelSet(nextX, nextY) != target)
+            {
+                return;
+            }
+
+            FillPixel(nextX, nextY);
+            pending.Enqueue((nextX, nextY));
+        }
+
+        void FillPixel(int pixelX, int pixelY)
+        {
+            // Filling changes pixel ink while retaining each character cell's paper color.
+            var attribute = m_attributes[(DrawingHeight - 1 - pixelY) / 8 * Columns + pixelX / 8];
+            var existingPaper = (byte)((attribute >> 3) & 7);
+            Plot(pixelX, pixelY, ink, existingPaper, bright, flash, inverse, over, preserveAttributes);
+        }
     }
 
     public bool IsScreenPixelSet(int x, int y)
@@ -200,7 +261,8 @@ public sealed class SpectrumScreen
         bool bright = false,
         bool flash = false,
         bool inverse = false,
-        bool over = false)
+        bool over = false,
+        bool preserveAttributes = false)
     {
         var dx = Math.Abs(x1 - x0);
         var sx = x0 < x1 ? 1 : -1;
@@ -209,7 +271,7 @@ public sealed class SpectrumScreen
         var error = dx + dy;
         while (true)
         {
-            Plot(x0, y0, ink, paper, bright, flash, inverse, over);
+            Plot(x0, y0, ink, paper, bright, flash, inverse, over, preserveAttributes);
             if (x0 == x1 && y0 == y1)
                 break;
             var twiceError = error * 2;
