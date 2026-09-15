@@ -6,12 +6,13 @@ The joy of ZX Spectrum BASIC, with a keyboard that behaves itself. Write a few l
 
 [**Download ZXBasic**](https://github.com/deanthecoder/ZXBasic/releases/latest) · [Try an example](#pick-something-to-play-with) · [Build from source](#build-from-source)
 
-## Yes, this is BASIC
-
-| Fly the flag | Make BASIC work for it |
-| :---: | :---: |
-| [![Union Jack drawn in ZXBasic](img/UnionJack.png)](Examples/UnionJack/UnionJack.bas) | [![Human Shader rendered in ZXBasic](img/HumanShader.png)](Examples/HumanShader/HumanShader.bas) |
-| **Union Jack** — `PLOT`, `DRAW`, and a splash of color. | **Human Shader** — a whole scene, calculated in BASIC. |
+<table>
+  <tr>
+    <td align="center"><a href="Examples/UnionJack/UnionJack.bas"><img src="img/UnionJack.png" alt="Union Jack drawn in ZXBasic" width="320"></a><br><strong>Union Jack</strong> — <code>PLOT</code>, <code>DRAW</code>, and a splash of color.</td>
+    <td align="center"><a href="Examples/HumanShader/HumanShader.bas"><img src="img/HumanShader.png" alt="Human Shader rendered in ZXBasic" width="320"></a><br><strong>Human Shader</strong> — a whole scene, calculated in BASIC.</td>
+    <td align="center"><a href="Examples/ThunderCats/ThunderCats.bas"><img src="img/ThunderCats.png" alt="ThunderCats logo drawn in ZXBasic" width="320"></a><br><strong>ThunderCats</strong> — <code>CIRCLE</code>, <code>DRAW</code>, and a carefully closed <code>FILL</code>.</td>
+  </tr>
+</table>
 
 These are program outputs, captured with **File → Save Screenshot**. Click either picture for its source. Human Shader is inspired by [humanshader.com](https://humanshader.com/). To run it, set the walking/running toolbar icon to **Unlimited** and let it cook.
 

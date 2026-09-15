@@ -9,6 +9,7 @@
 // THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND.
 
 using ZXBasic.Basic;
+using ZXBasic.Emulation;
 
 namespace ZXBasic.Tests;
 
@@ -27,6 +28,25 @@ public class BasicProgramTests
                 Throws.Nothing,
                 $"Invalid example listing: {Path.GetFileName(path)}");
         }
+    }
+
+    [Test]
+    public void ThunderCatsExampleKeepsTheRedDiscWhenFillingTheCatHead()
+    {
+        var examplesDirectory = Path.GetFullPath(
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "Examples"));
+        var program = new BasicProgram();
+        program.EnterListing(File.ReadAllText(Path.Combine(examplesDirectory, "ThunderCats", "ThunderCats.bas")));
+        var screen = new SpectrumScreen();
+
+        new BasicInterpreter(new BasicStatementExecutor(screen)).Run(program);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(screen.IsPixelSet(128, 20), Is.True, "The red disc must remain filled.");
+            Assert.That(screen.IsPixelSet(128, 88), Is.False, "The cat head must be cut out.");
+            Assert.That(screen.IsPixelSet(120, 120), Is.False, "The forehead marking must be cut out.");
+        });
     }
 
     [Test]
