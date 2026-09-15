@@ -1,10 +1,10 @@
+[![Follow @deanthecoder](https://img.shields.io/twitter/url/https/twitter.com/deanthecoder.svg?style=social&label=Follow%20%40deanthecoder)](https://twitter.com/deanthecoder) [![GitHub stars](https://img.shields.io/github/stars/deanthecoder/ZXBasic?style=social&label=Star)](https://github.com/deanthecoder/ZXBasic/stargazers)
+
 # ZXBasic
 
-**Tiny programs. Glorious pixels. Just one more `RUN`.**
+**Sinclair BASIC for a modern desktop.**
 
-The joy of ZX Spectrum BASIC, with a keyboard that behaves itself. Write a few lines, hit `RUN`, and make something colorful on a 256×192 screen — complete with color clash and an optional CRT glow.
-
-[**Download ZXBasic**](https://github.com/deanthecoder/ZXBasic/releases/latest) · [Try an example](#pick-something-to-play-with) · [Build from source](#build-from-source)
+ZXBasic brings the ZX Spectrum's programming environment to a modern desktop. Write a few lines, enter `RUN`, and see the result on a 256×192 display, complete with color clash and an optional CRT effect.
 
 <table>
   <tr>
@@ -14,20 +14,20 @@ The joy of ZX Spectrum BASIC, with a keyboard that behaves itself. Write a few l
   </tr>
 </table>
 
-These are program outputs, captured with **File → Save Screenshot**. Click either picture for its source. Human Shader is inspired by [humanshader.com](https://humanshader.com/). To run it, set the walking/running toolbar icon to **Unlimited** and let it cook.
+These images were captured from ZXBasic using **File → Save Screenshot**. Click any image to view the program that produced it. Human Shader is inspired by [humanshader.com](https://humanshader.com/) and is best run at **Unlimited** speed using the walking/running toolbar button.
 
-## Old-school fun, everyday comforts
+## Features
 
-- **Type normally.** Native keyboard input, automatic uppercase, and whole listings pasted in one go.
-- **Tinker quickly.** Click a listed line to edit it, scroll with the mouse wheel, and press Escape to stop a running program.
-- **Keep the look.** Spectrum colors, flashing attributes, custom characters, and a switchable phosphor CRT effect.
-- **Skip the wait.** Choose Spectrum speed, 10× Fast, or Unlimited — even while a program runs.
-- **Bring your programs.** Open and save `.bas` files, import BASIC from 48K `.sna` snapshots, or drop either onto the window.
-- **Play with the mouse.** Draw, erase, and flood-fill in the included Mouse Paint example.
+- **Modern editing.** Use native keyboard input, automatic uppercase, paste complete listings, click a listed line to edit it, and scroll with the mouse wheel.
+- **Spectrum-style display.** Use Spectrum colors, flashing attributes, custom characters, and an optional phosphor CRT effect.
+- **Adjustable execution speed.** Choose Spectrum speed, 10× Fast, or Unlimited, even while a program is running.
+- **Program files and snapshots.** Open and save `.bas` files, import BASIC from 48K `.sna` snapshots, or drag either type onto the window.
+- **Interruptible programs.** Press Escape to stop a running program.
+- **Mouse input.** Read the pointer and buttons from BASIC; the included Mouse Paint example demonstrates drawing, erasing, and flood fill.
 
-## Your first pixels in 30 seconds
+## Quick start
 
-Paste this into ZXBasic, type `RUN`, and press Enter. That's the whole program:
+Paste this program into ZXBasic, type `RUN`, and press Enter:
 
 ```basic
 10 BORDER 0: PAPER 0: INK 6: BRIGHT 1: CLS
@@ -37,17 +37,17 @@ Paste this into ZXBasic, type `RUN`, and press Enter. That's the whole program:
 50 NEXT A
 ```
 
-Change `INK 6` to `INK 3`. Try a different angle step. Run it again. You're programming a Spectrum.
+Try changing `INK 6` to `INK 3`, or adjust the angle step on line 20, and run the program again.
 
-## Pick something to play with
+## Example programs
 
 Open a listing with **File → Open**, `Ctrl+O` (`⌘+O` on macOS), or drag and drop. Then type `RUN`.
 
-| Program | What's the fun bit? |
+| Program | Highlights |
 | --- | --- |
-| [Human Shader](Examples/HumanShader/HumanShader.bas) | Build a scene a block at a time. **Unlimited recommended.** Also available as a [.sna snapshot](Examples/HumanShader/HumanShader.sna). |
-| [Union Jack](Examples/UnionJack/UnionJack.bas) | See how a few graphics commands and Spectrum attributes draw the flag above. |
-| [Mouse Paint](Examples/MousePaint/MousePaint.bas) | Doodle with normal and bright inks, an eraser, and flood fill. |
+| [Human Shader](Examples/HumanShader/HumanShader.bas) | Builds a scene a block at a time. **Unlimited speed recommended.** Also available as a [.sna snapshot](Examples/HumanShader/HumanShader.sna). |
+| [Union Jack](Examples/UnionJack/UnionJack.bas) | Uses graphics commands and Spectrum attributes to draw the flag shown above. |
+| [Mouse Paint](Examples/MousePaint/MousePaint.bas) | Provides normal and bright inks, an eraser, and flood fill. |
 | [3D Spinning Cube](Examples/CubeSpinner/CubeSpinner.bas) | Arrays + trigonometry + `DRAW` = a rotating wireframe cube. |
 | [Conway's Game of Life](Examples/Conway/Conway.bas) | Watch tiny patterns live, grow, and disappear. Also available as a [.sna snapshot](Examples/Conway/Conway.sna). |
 | [Web](Examples/Web/Web.bas) | Turn straight lines into a colorful animated web. |
@@ -55,39 +55,25 @@ Open a listing with **File → Open**, `Ctrl+O` (`⌘+O` on macOS), or drag and 
 | [FRAMES Clock](Examples/FramesClock/FramesClock.bas) | Turn the Spectrum's 50 Hz counter into a clock. |
 | [Joystick Move](Examples/JoystickMove/JoystickMove.bas) | Steer a `*` with the arrow keys and `IN 31`. |
 
-<details>
-<summary><strong>Show me the complete Web source — just 17 lines</strong></summary>
+## New commands and variables
 
-```basic
-10 LET I=0
-20 FOR S=20 TO 50 STEP 2
-30 LET I=I+1:IF I>6 THEN LET I=0
-40 CLS
-50 INK I
-60 LET DX=255/S
-70 LET DY=175/S
-80 FOR N=0 TO S-1
-90 LET DXN=INT(DX*N)
-100 LET DYN=INT(DY*N)
-110 PLOT DXN,0
-120 DRAW -DXN,175-DYN
-130 DRAW 255-DXN,DYN
-140 DRAW DXN,-175+DYN
-150 DRAW -255+DXN,-DYN
-160 NEXT N
-170 NEXT S
-```
+ZXBasic includes a few additions and recently implemented Spectrum features that are especially useful for interactive programs:
 
-</details>
+- `CONTINUE` resumes at the statement after the last `STOP`, preserving variables, loops, and subroutine state. The listing must not have changed since it stopped.
+- `FILL x,y` flood-fills the enclosed region containing `(x,y)` using the current ink. Temporary drawing attributes work too—for example, `FILL INK 2;128,88`. The surrounding outline must be completely closed or the fill will escape through the gap.
+- `RENUM` and `RENUMBER` renumber the listing and update literal targets used by `GO TO`, `GO SUB`, `THEN`, `RESTORE`, and `RUN`. They default to `10,10`; use forms such as `RENUMBER 100,5` to choose the first line and step.
 
-<details>
-<summary><strong>See Conway's Game of Life in action</strong></summary>
+Mouse input is exposed through live, read-only numeric variables:
 
-![Conway's Game of Life running through BASIC PEEK and POKE](img/GameOfLife.png)
+| Variable | Value |
+| --- | --- |
+| `_MX`, `_MY` | Current Spectrum pixel coordinates, or `-1` outside the display. Reading `_MX` takes a new position sample. |
+| `_OMX`, `_OMY` | Coordinates from the preceding `_MX` sample, useful for drawing continuous lines. |
+| `_MB` | Mouse-button bitmask: left `1`, right `2`, middle `4`. Values combine when multiple buttons are held. |
 
-</details>
+The Spectrum's 24-bit `FRAMES` system value is available through `PEEK 23672`, `PEEK 23673`, and `PEEK 23674`, least-significant byte first. It advances at 50 Hz and wraps after `16777215`; see the [FRAMES Clock](Examples/FramesClock/FramesClock.bas) for a complete example.
 
-## A little further down the rabbit hole
+## Using ZXBasic
 
 <details>
 <summary><strong>Editing programs and useful commands</strong></summary>
@@ -196,7 +182,3 @@ Snapshot import supports uncompressed 48K `.sna` files and extracts their BASIC 
 ## License
 
 ZXBasic source code, embedded font data, and the included example programs are available under the [MIT License](LICENSE).
-
----
-
-[Follow @deanthecoder](https://twitter.com/deanthecoder) · [Star ZXBasic](https://github.com/deanthecoder/ZXBasic/stargazers)
