@@ -574,7 +574,7 @@ public class BasicStatementExecutorTests
     }
 
     [Test]
-    public void BeepIsSilentButReturnsItsDurationInFiftiethsOfASecond()
+    public void BeepReturnsItsDurationAndPitchForPlayback()
     {
         var executor = new BasicStatementExecutor(new SpectrumScreen());
 
@@ -582,8 +582,36 @@ public class BasicStatementExecutorTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.Flow, Is.EqualTo(BasicStatementFlow.Pause));
-            Assert.That(result.PauseFrames, Is.EqualTo(25));
+            Assert.That(result.Flow, Is.EqualTo(BasicStatementFlow.Beep));
+            Assert.That(result.BeepDuration, Is.EqualTo(0.5));
+            Assert.That(result.BeepPitch, Is.EqualTo(12));
+        });
+    }
+
+    [Test]
+    public async Task AsyncSequencePlaysBeepBeforeContinuing()
+    {
+        var executor = new BasicStatementExecutor(new SpectrumScreen());
+        var played = false;
+
+        var result = await executor.ExecuteSequenceAsync(
+            BasicTokenizer.Tokenize("BEEP 0.25,-12:BORDER 4"),
+            (duration, pitch, _) =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(duration, Is.EqualTo(0.25));
+                    Assert.That(pitch, Is.EqualTo(-12));
+                });
+                played = true;
+                return Task.CompletedTask;
+            });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(played, Is.True);
+            Assert.That(executor.Runtime.Screen.BorderColor, Is.EqualTo(4));
+            Assert.That(result, Is.EqualTo(BasicStatementResult.Continue));
         });
     }
 

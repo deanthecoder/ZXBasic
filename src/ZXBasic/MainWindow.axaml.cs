@@ -40,7 +40,7 @@ public partial class MainWindow : Window
             AmbientDisplay.InvalidateVisual();
         };
         AddHandler(DragDrop.DropEvent, FileDropped);
-        Closed += (_, _) => Terminal.DisposeJoystickInput();
+        Closed += (_, _) => Terminal.DisposeDevices();
     }
 
     protected override void OnKeyDown(KeyEventArgs e)

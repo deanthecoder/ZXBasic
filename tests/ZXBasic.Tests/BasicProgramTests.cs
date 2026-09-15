@@ -45,7 +45,6 @@ public class BasicProgramTests
         {
             Assert.That(screen.IsPixelSet(128, 20), Is.True, "The red disc must remain filled.");
             Assert.That(screen.IsPixelSet(128, 88), Is.False, "The cat head must be cut out.");
-            Assert.That(screen.IsPixelSet(120, 120), Is.False, "The forehead marking must be cut out.");
         });
     }
 

@@ -59,10 +59,20 @@ public sealed class BasicInterpreter
         CancellationToken cancellationToken = default,
         int? startLineNumber = null,
         Func<string, CancellationToken, Task<string>>? inputProvider = null,
-        Func<int, CancellationToken, Task>? pauseProvider = null)
+        Func<int, CancellationToken, Task>? pauseProvider = null,
+        Func<double, double, CancellationToken, Task>? beepProvider = null)
     {
         ArgumentNullException.ThrowIfNull(onProgress);
-        return RunCoreAsync(program, onProgress, true, cancellationToken, startLineNumber, false, inputProvider, pauseProvider);
+        return RunCoreAsync(
+            program,
+            onProgress,
+            true,
+            cancellationToken,
+            startLineNumber,
+            false,
+            inputProvider,
+            pauseProvider,
+            beepProvider);
     }
 
     public Task<BasicRunResult> ContinueAsync(
@@ -70,10 +80,20 @@ public sealed class BasicInterpreter
         Action onProgress,
         CancellationToken cancellationToken = default,
         Func<string, CancellationToken, Task<string>>? inputProvider = null,
-        Func<int, CancellationToken, Task>? pauseProvider = null)
+        Func<int, CancellationToken, Task>? pauseProvider = null,
+        Func<double, double, CancellationToken, Task>? beepProvider = null)
     {
         ArgumentNullException.ThrowIfNull(onProgress);
-        return RunCoreAsync(program, onProgress, true, cancellationToken, null, true, inputProvider, pauseProvider);
+        return RunCoreAsync(
+            program,
+            onProgress,
+            true,
+            cancellationToken,
+            null,
+            true,
+            inputProvider,
+            pauseProvider,
+            beepProvider);
     }
 
     private async Task<BasicRunResult> RunCoreAsync(
@@ -84,7 +104,8 @@ public sealed class BasicInterpreter
         int? startLineNumber,
         bool continueExecution,
         Func<string, CancellationToken, Task<string>>? inputProvider = null,
-        Func<int, CancellationToken, Task>? pauseProvider = null)
+        Func<int, CancellationToken, Task>? pauseProvider = null,
+        Func<double, double, CancellationToken, Task>? beepProvider = null)
     {
         IReadOnlyList<Instruction> instructions;
         IReadOnlyDictionary<int, int> linePositions;
@@ -195,6 +216,17 @@ public sealed class BasicInterpreter
                     }
 
                     await pauseProvider(result.PauseFrames, cancellationToken);
+                }
+                else if (result.Flow == BasicStatementFlow.Beep)
+                {
+                    if (beepProvider == null)
+                    {
+                        await m_delay(TimeSpan.FromSeconds(result.BeepDuration), cancellationToken);
+                    }
+                    else
+                    {
+                        await beepProvider(result.BeepDuration, result.BeepPitch, cancellationToken);
+                    }
                 }
 
                 if (yieldForProgress && executedStatements % ThrottleStatementCount == 0)

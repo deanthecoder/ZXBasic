@@ -87,6 +87,38 @@ public sealed class BasicStatementExecutor
         return result;
     }
 
+    public async ValueTask<BasicStatementResult> ExecuteSequenceAsync(
+        IReadOnlyList<BasicToken> tokens,
+        Func<double, double, CancellationToken, Task> beepProvider,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(beepProvider);
+        var statements = SplitTopLevel(tokens, 0, ":");
+        if (statements.Any(statement => statement.Count == 0))
+        {
+            throw new BasicSyntaxException("Empty statement", 0);
+        }
+
+        foreach (var statement in statements)
+        {
+            var result = Execute(statement);
+            if (!result.Handled)
+            {
+                return result;
+            }
+            if (result.Flow == BasicStatementFlow.Beep)
+            {
+                await beepProvider(result.BeepDuration, result.BeepPitch, cancellationToken);
+                continue;
+            }
+            if (result.Flow != BasicStatementFlow.Continue)
+            {
+                return result;
+            }
+        }
+        return BasicStatementResult.Continue;
+    }
+
     public BasicStatementResult Execute(IReadOnlyList<BasicToken> tokens)
     {
         if (tokens.Count == 0 || tokens[0].Kind != BasicTokenKind.Keyword)
@@ -969,8 +1001,7 @@ public sealed class BasicStatementExecutor
             throw new BasicSyntaxException("BEEP out of range", ArgumentPosition(tokens));
         }
 
-        var frames = checked((int)Math.Round(duration * 50, MidpointRounding.AwayFromZero));
-        return frames == 0 ? BasicStatementResult.Continue : BasicStatementResult.Pause(frames);
+        return duration == 0 ? BasicStatementResult.Continue : BasicStatementResult.Beep(duration, pitch);
     }
 
     private BasicStatementResult ExecuteRandomize(IReadOnlyList<BasicToken> tokens)

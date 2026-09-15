@@ -21,6 +21,7 @@ These images were captured from ZXBasic using **File → Save Screenshot**. Clic
 - **Modern editing.** Use native keyboard input, automatic uppercase, paste complete listings, click a listed line to edit it, and scroll with the mouse wheel.
 - **Spectrum-style display.** Use Spectrum colors, flashing attributes, custom characters, and an optional phosphor CRT effect.
 - **Adjustable execution speed.** Choose Spectrum speed, 10× Fast, or Unlimited, even while a program is running.
+- **Beeper audio.** Play Spectrum-style square-wave tones with BASIC's `BEEP duration,pitch` command.
 - **Program files and snapshots.** Open and save `.bas` files, import BASIC from 48K `.sna` snapshots, or drag either type onto the window.
 - **Interruptible programs.** Press Escape to stop a running program.
 - **Mouse input.** Read the pointer and buttons from BASIC; the included Mouse Paint example demonstrates drawing, erasing, and flood fill.
@@ -122,7 +123,7 @@ ZXBasic currently supports the core language needed by sizeable Spectrum program
 - `PRINT`, `AT`, `TAB`, print zones, scrolling, embedded color controls, block graphics, and UDGs.
 - `PLOT`, `DRAW`, curved `DRAW`, `CIRCLE`, `FILL`, `POINT`, `ATTR`, and `SCREEN$`.
 - `INK`, `PAPER`, `BRIGHT`, `FLASH`, `INVERSE`, `OVER`, `BORDER`, and `CLS`.
-- `PEEK`, `POKE`, `CLEAR`, `RANDOMIZE`, `RND`, `INKEY$`, `REM`, and silent `BEEP`.
+- `PEEK`, `POKE`, `CLEAR`, `RANDOMIZE`, `RND`, `INKEY$`, `REM`, and `BEEP` audio.
 - `IN 31` for cursor-key joystick input: right `1`, left `2`, down `4`, and up `8`.
 
 Display memory follows the Spectrum layout: addresses `16384`–`22527` expose its non-linear bitmap rows, and `22528`–`23295` expose the 32×24 color attribute map.
@@ -175,7 +176,7 @@ The GitHub Actions installer workflow builds the Windows and macOS packages and 
 
 ## Compatibility
 
-ZXBasic interprets BASIC directly; it is not a machine emulator. Z80 machine code and `RANDOMIZE USR` are outside its scope. `IN 31` is available for cursor-key joystick input; other hardware-specific `IN` ports, `OUT`, printer commands, and tape commands are not supported. `BEEP` accepts and observes the requested duration without producing sound.
+ZXBasic interprets BASIC directly; it is not a machine emulator. Z80 machine code and `RANDOMIZE USR` are outside its scope. `IN 31` is available for cursor-key joystick input; other hardware-specific `IN` ports, `OUT`, printer commands, and tape commands are not supported.
 
 Snapshot import supports uncompressed 48K `.sna` files and extracts their BASIC program. Other machine state and embedded machine-code routines are not executed.
 

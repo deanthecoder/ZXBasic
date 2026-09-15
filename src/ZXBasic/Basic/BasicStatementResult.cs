@@ -14,13 +14,16 @@ public enum BasicStatementFlow
 {
     Continue,
     Stop,
-    Pause
+    Pause,
+    Beep
 }
 
 public readonly record struct BasicStatementResult(
     bool Handled,
     BasicStatementFlow Flow = BasicStatementFlow.Continue,
-    int PauseFrames = 0)
+    int PauseFrames = 0,
+    double BeepDuration = 0,
+    double BeepPitch = 0)
 {
     public static BasicStatementResult Continue { get; } = new(true);
     public static BasicStatementResult Stop { get; } = new(true, BasicStatementFlow.Stop);
@@ -29,5 +32,14 @@ public readonly record struct BasicStatementResult(
     public static BasicStatementResult Pause(int frames)
     {
         return new BasicStatementResult(true, BasicStatementFlow.Pause, frames);
+    }
+
+    public static BasicStatementResult Beep(double duration, double pitch)
+    {
+        return new BasicStatementResult(
+            true,
+            BasicStatementFlow.Beep,
+            BeepDuration: duration,
+            BeepPitch: pitch);
     }
 }

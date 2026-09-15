@@ -978,4 +978,33 @@ public class BasicInterpreterTests
             Assert.That(result.IsPaused, Is.False);
         });
     }
+
+    [Test]
+    public async Task BeepPlaysTheRequestedToneThenContinuesTheProgram()
+    {
+        var screen = new SpectrumScreen();
+        var program = new BasicProgram();
+        program.Enter("10 BEEP 0.5,12");
+        program.Enter("20 BORDER 4");
+        var requestedDuration = -1.0;
+        var requestedPitch = -1.0;
+
+        var result = await new BasicInterpreter(new BasicStatementExecutor(screen)).RunAsync(
+            program,
+            () => { },
+            beepProvider: (duration, pitch, _) =>
+            {
+                requestedDuration = duration;
+                requestedPitch = pitch;
+                return Task.CompletedTask;
+            });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(requestedDuration, Is.EqualTo(0.5));
+            Assert.That(requestedPitch, Is.EqualTo(12));
+            Assert.That(screen.BorderColor, Is.EqualTo(4));
+            Assert.That(result.IsPaused, Is.False);
+        });
+    }
 }

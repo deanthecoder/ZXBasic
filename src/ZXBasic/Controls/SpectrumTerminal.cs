@@ -59,6 +59,7 @@ public sealed class SpectrumTerminal : Control
     private string m_pendingInkey = string.Empty;
     private Key? m_pendingInkeyKey;
     private readonly JoystickInputMonitor m_joystickInput = new();
+    private readonly SpectrumBeepPlayer m_beepPlayer = new();
 
     public event EventHandler? FrameRefreshed;
     public WriteableBitmap Frame => m_frame;
@@ -747,7 +748,9 @@ public sealed class SpectrumTerminal : Control
                 }
 
                 var tokens = BasicTokenizer.Tokenize(input);
-                var result = m_statementExecutor.ExecuteSequence(tokens);
+                var result = await m_statementExecutor.ExecuteSequenceAsync(
+                    tokens,
+                    m_beepPlayer.PlayAsync);
                 m_preserveProgramScreen = result.Handled;
                 m_isPaused = result.Handled;
                 if (result.Handled)
@@ -769,6 +772,10 @@ public sealed class SpectrumTerminal : Control
             {
                 m_hasError = true;
                 ShowCursor();
+                return;
+            }
+            catch (OperationCanceledException)
+            {
                 return;
             }
         }
@@ -804,14 +811,16 @@ public sealed class SpectrumTerminal : Control
                     RefreshFrame,
                     cancellation.Token,
                     ReadInputAsync,
-                    WaitForPauseAsync)
+                    WaitForPauseAsync,
+                    m_beepPlayer.PlayAsync)
                 : await m_interpreter.RunAsync(
                     m_program,
                     RefreshFrame,
                     cancellation.Token,
                     startLineNumber,
                     ReadInputAsync,
-                    WaitForPauseAsync);
+                    WaitForPauseAsync,
+                    m_beepPlayer.PlayAsync);
             m_isPaused = result.IsPaused;
             if (!result.IsPaused)
             {
@@ -990,9 +999,10 @@ public sealed class SpectrumTerminal : Control
         return m_pendingInkey;
     }
 
-    public void DisposeJoystickInput()
+    public void DisposeDevices()
     {
         m_joystickInput.Dispose();
+        m_beepPlayer.Dispose();
     }
 
     private int? EvaluateOptionalLineNumber(string input)
